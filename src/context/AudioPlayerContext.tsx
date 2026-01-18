@@ -236,12 +236,9 @@ export function AudioPlayerProvider({
     if (state.isPlaying) {
       pause();
     } else {
-      // Resume with fade-in if enabled
-      const targetVolume = Math.max(state.volume, MIN_FADE_IN_VOLUME);
-
-      if (configRef.current.fadeInEnabled) {
-        audioRef.current.volume = 0;
-      }
+      // Resume playback WITHOUT fade-in (fade-in only on new songs via play())
+      // Use the current displayVolume to avoid volume jumps
+      audioRef.current.volume = state.displayVolume;
 
       audioRef.current
         .play()
@@ -253,15 +250,12 @@ export function AudioPlayerProvider({
               })
             );
           }
-          if (configRef.current.fadeInEnabled) {
-            fadeInVolume(targetVolume);
-          }
         })
         .catch(() => {
           // Handle autoplay restrictions silently
         });
     }
-  }, [state.isPlaying, state.currentSong, state.volume, pause, fadeInVolume]);
+  }, [state.isPlaying, state.currentSong, state.displayVolume, pause]);
 
   // Seek to position
   const seek = useCallback((time: number) => {
