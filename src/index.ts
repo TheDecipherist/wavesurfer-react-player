@@ -6,7 +6,7 @@ export {
 } from './context';
 
 // Components
-export { WaveformPlayer, MiniPlayer } from './components';
+export { WaveformPlayer, MiniPlayer, ShareButtons } from './components';
 
 // Hooks
 export { useLazyLoad } from './hooks';
@@ -27,4 +27,6 @@ export type {
   MiniPlayerProps,
   UseLazyLoadResult,
   UseLazyLoadOptions,
+  SharePlatform,
+  ShareButtonsProps,
 } from './types';

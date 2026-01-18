@@ -1,38 +1,38 @@
 # wavesurf
 
-A React audio player with WaveSurfer.js waveform visualization, global state management, and mini-player support.
+A production-ready React audio player built on [WaveSurfer.js](https://wavesurfer.xyz/). Features waveform visualization, global state management, a persistent mini-player, and social sharing—everything you need for a music streaming experience.
 
-## Features
+## Why wavesurf?
 
-- **WaveSurfer.js Integration** - Beautiful waveform visualization for audio playback
-- **Global Audio State** - React Context for managing playback across your app
-- **Mini Player** - A persistent bottom/top bar for controlling playback
-- **Pre-computed Peaks Support** - Fast loading with pre-generated waveform data
-- **Volume Fade-in Effect** - Smooth 3-second volume fade when starting playback
-- **Volume Persistence** - Remember user's volume preference via localStorage
-- **Lazy Loading** - Load waveforms only when visible using IntersectionObserver
-- **Mobile Responsive** - Adapts to different screen sizes
-- **CSS Variables** - Easy theming with CSS custom properties
-- **TypeScript** - Full TypeScript support with exported types
+Building a good audio player is harder than it looks. You need:
+
+- **Global state** so only one song plays at a time (like Spotify)
+- **Waveform visualization** that's performant and interactive
+- **A persistent mini-player** that stays visible while users browse
+- **Volume fade-in** so playback doesn't blast at full volume
+- **Mobile responsiveness** across all screen sizes
+- **Lazy loading** so pages with many tracks don't lag
+
+wavesurf handles all of this out of the box, so you can focus on your actual product.
 
 ## Installation
 
 ```bash
 npm install wavesurf wavesurfer.js
-# or
-yarn add wavesurf wavesurfer.js
-# or
-pnpm add wavesurf wavesurfer.js
 ```
+
+> **Why wavesurfer.js is a peer dependency:** You might already have it in your project, or want to control the version. Making it a peer dependency prevents duplicate bundles and version conflicts.
 
 ## Quick Start
 
-### 1. Wrap your app with the provider
+### 1. Add the Provider
+
+Wrap your app (or the part that needs audio) with `AudioPlayerProvider`:
 
 ```tsx
 import { AudioPlayerProvider } from 'wavesurf';
 
-function App() {
+export default function App() {
   return (
     <AudioPlayerProvider>
       <YourApp />
@@ -41,12 +41,15 @@ function App() {
 }
 ```
 
-### 2. Add the MiniPlayer component
+### 2. Add the Mini Player
+
+Place `MiniPlayer` in your layout—it appears automatically when a song plays:
 
 ```tsx
 import { MiniPlayer } from 'wavesurf';
+import 'wavesurf/styles.css';
 
-function Layout({ children }) {
+export default function Layout({ children }) {
   return (
     <div>
       {children}
@@ -56,25 +59,24 @@ function Layout({ children }) {
 }
 ```
 
-### 3. Use the WaveformPlayer for songs
+### 3. Display Songs with WaveformPlayer
 
 ```tsx
 import { WaveformPlayer } from 'wavesurf';
-import 'wavesurf/styles.css';
 
-function SongList({ songs }) {
+function TrackList({ tracks }) {
   return (
     <div>
-      {songs.map((song) => (
+      {tracks.map((track) => (
         <WaveformPlayer
-          key={song.id}
+          key={track.id}
           song={{
-            id: song.id,
-            title: song.title,
-            artist: song.artist,
-            audioUrl: song.url,
-            duration: song.duration,
-            peaks: song.peaks, // Optional: pre-computed waveform data
+            id: track.id,
+            title: track.title,
+            artist: track.artist,
+            audioUrl: track.url,
+            duration: track.duration,
+            peaks: track.peaks, // Optional but recommended
           }}
         />
       ))}
@@ -83,164 +85,265 @@ function SongList({ songs }) {
 }
 ```
 
-## API Reference
+That's it. Click play on any track, and the mini-player appears. Click another track, and it seamlessly switches.
 
-### AudioPlayerProvider
+---
 
-Wrap your application with this provider to enable global audio state management.
+## Architecture & Design Decisions
 
-```tsx
-<AudioPlayerProvider config={config}>
-  {children}
-</AudioPlayerProvider>
-```
+### Global Audio Context
 
-#### Config Options
+**Problem:** In a typical music app, you have multiple track listings, album pages, and a persistent player bar. Without global state, you'd have multiple `<audio>` elements fighting each other.
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `fadeInEnabled` | `boolean` | `true` | Enable volume fade-in effect on play |
-| `fadeInDuration` | `number` | `3000` | Duration of fade-in in milliseconds |
-| `persistVolume` | `boolean` | `true` | Persist volume to localStorage |
-| `storageKey` | `string` | `'audioPlayerVolume'` | localStorage key for volume |
-| `defaultVolume` | `number` | `1` | Default volume level (0-1) |
-| `onPlay` | `(song: Song) => void` | - | Callback when playback starts |
-| `onPause` | `() => void` | - | Callback when playback pauses |
-| `onEnd` | `() => void` | - | Callback when song ends |
-| `onTimeUpdate` | `(time: number) => void` | - | Callback on time update |
+**Solution:** wavesurf uses React Context to maintain a single audio source. When you call `play()` from anywhere in your app, it:
 
-### useAudioPlayer Hook
-
-Access the audio player state and controls from any component.
+1. Pauses any currently playing audio
+2. Loads the new track
+3. Starts playback with a volume fade-in
+4. Notifies all `WaveformPlayer` components to update their UI
 
 ```tsx
-import { useAudioPlayer } from 'wavesurf';
-
-function CustomControls() {
-  const {
-    // State
-    currentSong,
-    isPlaying,
-    currentTime,
-    duration,
-    volume,
-    displayVolume,
-    isFadingIn,
-    // Actions
-    play,
-    pause,
-    togglePlay,
-    seek,
-    setVolume,
-    stop,
-  } = useAudioPlayer();
-
-  return (
-    <button onClick={togglePlay}>
-      {isPlaying ? 'Pause' : 'Play'}
-    </button>
-  );
-}
+// Any component can control playback
+const { play, pause, currentSong, isPlaying } = useAudioPlayer();
 ```
 
-### WaveformPlayer
+### Waveform Visualization (Why WaveSurfer.js?)
 
-Displays a waveform visualization with play controls for a single song.
+**Problem:** Audio waveforms require decoding audio data and rendering thousands of bars. Doing this poorly kills performance.
+
+**Solution:** WaveSurfer.js is the industry standard for web audio visualization. It handles:
+
+- Efficient canvas rendering
+- Audio decoding
+- Responsive resize handling
+- Click-to-seek interactions
+
+wavesurf wraps WaveSurfer.js with React lifecycle management, so you don't deal with manual cleanup or memory leaks.
+
+### Pre-computed Peaks (Performance)
+
+**Problem:** Decoding audio to generate waveforms is slow—especially for longer tracks or pages with many songs. Users see loading spinners everywhere.
+
+**Solution:** Generate peaks once (server-side), store them, and pass them to wavesurf:
+
+```tsx
+<WaveformPlayer
+  song={{
+    id: '1',
+    title: 'My Song',
+    audioUrl: '/audio/song.mp3',
+    duration: 245,
+    peaks: [0.1, 0.3, 0.5, 0.8, ...], // Pre-computed!
+  }}
+/>
+```
+
+When peaks are provided:
+- **No audio decoding needed** — waveform renders instantly
+- **No network request for audio** — until the user clicks play
+- **Pages load faster** — even with 50+ tracks
+
+#### How to Generate Peaks
+
+Using [audiowaveform](https://github.com/bbc/audiowaveform) (recommended):
+
+```bash
+# Install
+brew install audiowaveform  # macOS
+apt install audiowaveform   # Ubuntu
+
+# Generate peaks
+audiowaveform -i song.mp3 -o peaks.json --pixels-per-second 10 -b 8
+```
+
+Or server-side with FFmpeg/Node.js—compute once when uploading audio, store in your database.
+
+### Volume Fade-in (UX)
+
+**Problem:** Clicking play and getting blasted with sudden audio is jarring. Users instinctively reach for the volume.
+
+**Solution:** wavesurf fades volume from 0 to the user's set level over 3 seconds (configurable). This:
+
+- Creates a professional, polished feel
+- Prevents startling users
+- Matches how streaming services behave
+
+```tsx
+<AudioPlayerProvider config={{
+  fadeInEnabled: true,      // default: true
+  fadeInDuration: 3000,     // default: 3000ms
+}}>
+```
+
+### Volume Persistence (UX)
+
+**Problem:** Users set their volume, navigate to another page, and it resets.
+
+**Solution:** Volume is automatically saved to localStorage and restored on page load.
+
+```tsx
+<AudioPlayerProvider config={{
+  persistVolume: true,              // default: true
+  storageKey: 'myAppVolume',        // default: 'audioPlayerVolume'
+  defaultVolume: 0.8,               // default: 1
+}}>
+```
+
+### Lazy Loading (Performance)
+
+**Problem:** A page with 20 tracks means 20 WaveSurfer instances initializing at once, causing jank.
+
+**Solution:** wavesurf uses IntersectionObserver to only initialize waveforms when they scroll into view:
 
 ```tsx
 <WaveformPlayer
   song={song}
+  lazyLoad={true}  // default: true
+/>
+```
+
+Tracks off-screen are just empty containers until needed.
+
+### Mini Player (UX Pattern)
+
+**Problem:** Users want to browse your site while listening. A player embedded in the track list disappears when they navigate.
+
+**Solution:** The `MiniPlayer` component is a fixed bar (bottom or top) that:
+
+- Appears when playback starts
+- Shows current track, progress, volume controls
+- Has its own mini waveform for seeking
+- Stays visible during navigation
+- Can be closed by the user
+
+```tsx
+<MiniPlayer
+  position="bottom"  // or "top"
+  showVolume={true}  // auto-hidden on mobile
+  showClose={true}
+  onClose={() => console.log('Player closed')}
+/>
+```
+
+---
+
+## Components
+
+### AudioPlayerProvider
+
+Wraps your app to provide global audio state.
+
+```tsx
+<AudioPlayerProvider config={{
+  fadeInEnabled: true,
+  fadeInDuration: 3000,
+  persistVolume: true,
+  storageKey: 'audioPlayerVolume',
+  defaultVolume: 1,
+  onPlay: (song) => analytics.track('play', song),
+  onPause: () => analytics.track('pause'),
+  onEnd: () => analytics.track('songEnded'),
+  onTimeUpdate: (time) => {},
+}}>
+  {children}
+</AudioPlayerProvider>
+```
+
+### useAudioPlayer Hook
+
+Access state and controls from any component:
+
+```tsx
+const {
+  // State
+  currentSong,    // Song | null
+  isPlaying,      // boolean
+  currentTime,    // number (seconds)
+  duration,       // number (seconds)
+  volume,         // number (0-1, user's saved volume)
+  displayVolume,  // number (0-1, actual volume during fade)
+  isFadingIn,     // boolean
+
+  // Actions
+  play,           // (song: Song) => void
+  pause,          // () => void
+  togglePlay,     // () => void
+  seek,           // (time: number) => void
+  setVolume,      // (volume: number) => void
+  stop,           // () => void
+} = useAudioPlayer();
+```
+
+### WaveformPlayer
+
+Displays a track with waveform visualization:
+
+```tsx
+<WaveformPlayer
+  song={{
+    id: string,
+    title: string,
+    artist?: string,
+    album?: string,
+    audioUrl: string,
+    duration?: number,
+    peaks?: number[],
+  }}
   waveformConfig={{
     waveColor: '#666666',
     progressColor: '#D4AF37',
+    cursorColor: '#D4AF37',
+    barWidth: 2,
+    barGap: 1,
+    barRadius: 2,
     height: 60,
   }}
   lazyLoad={true}
   showTime={true}
-  className="my-player"
-  renderHeader={(song, isPlaying) => (
-    <div>{song.title} {isPlaying && '▶'}</div>
-  )}
-  renderControls={(song, isPlaying) => (
-    <button>Share</button>
-  )}
+  className=""
+  renderHeader={(song, isPlaying) => <CustomHeader />}
+  renderControls={(song, isPlaying) => <CustomControls />}
 />
 ```
-
-#### Props
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `song` | `Song` | required | The song object to play |
-| `waveformConfig` | `WaveformConfig` | - | Waveform styling options |
-| `lazyLoad` | `boolean` | `true` | Enable lazy loading via IntersectionObserver |
-| `showTime` | `boolean` | `true` | Show time display below waveform |
-| `className` | `string` | `''` | Additional CSS class |
-| `renderHeader` | `(song, isPlaying) => ReactNode` | - | Custom header renderer |
-| `renderControls` | `(song, isPlaying) => ReactNode` | - | Custom controls renderer |
 
 ### MiniPlayer
 
-A fixed position player bar for persistent playback control.
+Persistent playback bar:
 
 ```tsx
 <MiniPlayer
-  position="bottom"
+  position="bottom"  // 'top' | 'bottom'
   showVolume={true}
   showClose={true}
-  onClose={() => console.log('Player closed')}
-  className="my-mini-player"
-  waveformConfig={{
-    progressColor: '#FF0000',
-  }}
+  onClose={() => {}}
+  className=""
+  waveformConfig={{...}}
 />
 ```
 
-#### Props
+### ShareButtons
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `position` | `'top' \| 'bottom'` | `'bottom'` | Position on screen |
-| `showVolume` | `boolean` | `true` | Show volume control (auto-hidden on mobile) |
-| `showClose` | `boolean` | `true` | Show close button |
-| `onClose` | `() => void` | - | Callback when close is clicked |
-| `className` | `string` | `''` | Additional CSS class |
-| `waveformConfig` | `WaveformConfig` | - | Waveform styling options |
+Social sharing for tracks:
 
-### Song Interface
+```tsx
+import { ShareButtons } from 'wavesurf';
 
-```typescript
-interface Song {
-  id: string;           // Unique identifier
-  title: string;        // Display title
-  artist?: string;      // Artist name (optional)
-  album?: string;       // Album name (optional)
-  audioUrl: string;     // URL to the audio file
-  duration?: number;    // Duration in seconds (optional)
-  peaks?: number[];     // Pre-computed waveform peaks (optional)
-}
+<ShareButtons
+  url="https://mysite.com/track/123"
+  text="Check out this song!"
+  platforms={['facebook', 'twitter', 'whatsapp', 'copy']}
+  onShare={(platform, url) => analytics.track('share', { platform })}
+  showLabels={false}
+/>
 ```
 
-### WaveformConfig Interface
+**Available platforms:** `facebook`, `twitter`, `whatsapp`, `linkedin`, `reddit`, `telegram`, `email`, `copy`
 
-```typescript
-interface WaveformConfig {
-  waveColor?: string;      // Color of the waveform (default: '#666666')
-  progressColor?: string;  // Color of played portion (default: '#D4AF37')
-  cursorColor?: string;    // Color of playhead (default: '#D4AF37')
-  barWidth?: number;       // Width of bars in px (default: 2)
-  barGap?: number;         // Gap between bars in px (default: 1)
-  barRadius?: number;      // Border radius of bars (default: 2)
-  height?: number;         // Height in pixels (default: 60)
-  normalize?: boolean;     // Normalize waveform (default: true)
-}
-```
+---
 
-## Styling & Theming
+## Styling
 
-### Using the default styles
-
-Import the CSS file in your app:
+### Using Default Styles
 
 ```tsx
 import 'wavesurf/styles.css';
@@ -248,24 +351,27 @@ import 'wavesurf/styles.css';
 
 ### Customizing with CSS Variables
 
-Override the CSS variables to customize the appearance:
+Override any of these in your CSS:
 
 ```css
 :root {
-  /* Colors */
-  --wsp-wave-color: #888888;
-  --wsp-progress-color: #FF5500;
-  --wsp-cursor-color: #FF5500;
+  /* Waveform */
+  --wsp-wave-color: #666666;
+  --wsp-progress-color: #D4AF37;
+  --wsp-cursor-color: #D4AF37;
+
+  /* Backgrounds */
   --wsp-background: transparent;
+  --wsp-background-secondary: rgba(255, 255, 255, 0.05);
 
-  /* Button Colors */
-  --wsp-button-bg: #FF5500;
-  --wsp-button-bg-hover: #FF7733;
-  --wsp-button-text: #ffffff;
+  /* Buttons */
+  --wsp-button-bg: #D4AF37;
+  --wsp-button-bg-hover: #e5c04a;
+  --wsp-button-text: #000000;
 
-  /* Text Colors */
+  /* Text */
   --wsp-text: #ffffff;
-  --wsp-text-muted: #999999;
+  --wsp-text-muted: #a3a3a3;
 
   /* Sizing */
   --wsp-height: 60px;
@@ -273,54 +379,32 @@ Override the CSS variables to customize the appearance:
   --wsp-button-size: 56px;
 
   /* Mini Player */
-  --wsp-mini-bg: #1a1a1a;
-  --wsp-mini-border-color: #FF5500;
+  --wsp-mini-bg: #0a0a0a;
+  --wsp-mini-border-color: #D4AF37;
+  --wsp-mini-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+
+  /* Transitions */
+  --wsp-transition: 150ms ease;
 }
 ```
 
-### Using your own styles
+### Custom Styling
 
-You can also write completely custom CSS targeting the class names:
+All components use BEM-style class names you can target:
 
-- `.wsp-player` - Main player container
+- `.wsp-player` - WaveformPlayer container
 - `.wsp-play-button` - Play/pause button
 - `.wsp-waveform` - Waveform container
-- `.wsp-time-display` - Time display
-- `.wsp-mini-player` - Mini player container
-- `.wsp-mini-play-button` - Mini player play button
-- `.wsp-mini-waveform` - Mini player waveform
+- `.wsp-time-display` - Time labels
+- `.wsp-mini-player` - MiniPlayer container
+- `.wsp-share-buttons` - ShareButtons container
+- `.wsp-share-button` - Individual share button
 
-## Pre-computed Peaks
-
-For optimal performance, especially with large audio files, you can pre-compute waveform peaks on your server. This eliminates the need to decode audio on the client.
-
-### Generating peaks with audiowaveform
-
-```bash
-# Install audiowaveform (on Ubuntu/Debian)
-sudo apt install audiowaveform
-
-# Generate peaks JSON
-audiowaveform -i audio.mp3 -o peaks.json --pixels-per-second 10
-```
-
-### Using peaks in your app
-
-```tsx
-const song = {
-  id: '1',
-  title: 'My Song',
-  audioUrl: '/audio/song.mp3',
-  duration: 180, // 3 minutes
-  peaks: peaksData, // Array of numbers from audiowaveform
-};
-
-<WaveformPlayer song={song} />
-```
+---
 
 ## TypeScript
 
-All types are exported from the package:
+All types are exported:
 
 ```typescript
 import type {
@@ -331,18 +415,79 @@ import type {
   WaveformConfig,
   WaveformPlayerProps,
   MiniPlayerProps,
+  SharePlatform,
+  ShareButtonsProps,
 } from 'wavesurf';
 ```
 
+---
+
+## Examples
+
+### Custom Play Button (Headless Usage)
+
+```tsx
+function CustomPlayButton({ song }) {
+  const { play, pause, currentSong, isPlaying } = useAudioPlayer();
+  const isThisSong = currentSong?.id === song.id;
+  const playing = isThisSong && isPlaying;
+
+  return (
+    <button onClick={() => playing ? pause() : play(song)}>
+      {playing ? 'Pause' : 'Play'}
+    </button>
+  );
+}
+```
+
+### Track Card with Share
+
+```tsx
+function TrackCard({ track }) {
+  const shareUrl = `https://mysite.com/track/${track.id}`;
+
+  return (
+    <div className="track-card">
+      <WaveformPlayer song={track} />
+      <ShareButtons
+        url={shareUrl}
+        text={`Listen to ${track.title}`}
+        platforms={['twitter', 'whatsapp', 'copy']}
+      />
+    </div>
+  );
+}
+```
+
+### Analytics Integration
+
+```tsx
+<AudioPlayerProvider config={{
+  onPlay: (song) => {
+    analytics.track('song_play', {
+      songId: song.id,
+      title: song.title,
+    });
+  },
+  onEnd: () => {
+    analytics.track('song_completed');
+  },
+}}>
+```
+
+---
+
 ## Browser Support
 
-This package requires browsers that support:
+Requires browsers with:
 - Web Audio API
 - CSS Custom Properties
-- IntersectionObserver (for lazy loading)
+- IntersectionObserver
 
 All modern browsers (Chrome, Firefox, Safari, Edge) are supported.
 
+---
+
 ## License
 
-MIT
+MIT © [TheDecipherist](https://github.com/TheDecipherist)

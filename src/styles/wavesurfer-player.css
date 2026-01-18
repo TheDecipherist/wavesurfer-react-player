@@ -393,3 +393,52 @@
   width: 20px;
   height: 20px;
 }
+
+/* ========================================
+   ShareButtons Styles
+   ======================================== */
+
+.wsp-share-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.wsp-share-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--wsp-radius);
+  cursor: pointer;
+  color: var(--wsp-text-muted);
+  transition: all var(--wsp-transition);
+}
+
+.wsp-share-button:hover {
+  color: var(--wsp-share-hover-color, var(--wsp-button-bg));
+  background: var(--wsp-background-secondary);
+}
+
+.wsp-share-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.wsp-share-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.wsp-share-icon--success {
+  color: #22c55e;
+}
+
+.wsp-share-label {
+  font-size: 0.75rem;
+  white-space: nowrap;
+}

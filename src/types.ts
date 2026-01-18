@@ -171,3 +171,34 @@ export interface UseLazyLoadOptions {
   /** Start as visible (skip lazy loading) */
   forceVisible?: boolean;
 }
+
+/**
+ * Available share platforms.
+ */
+export type SharePlatform =
+  | 'facebook'
+  | 'twitter'
+  | 'whatsapp'
+  | 'linkedin'
+  | 'reddit'
+  | 'telegram'
+  | 'email'
+  | 'copy';
+
+/**
+ * Props for the ShareButtons component.
+ */
+export interface ShareButtonsProps {
+  /** URL to share */
+  url: string;
+  /** Text/message to include with the share (optional) */
+  text?: string;
+  /** Which platforms to show (default: facebook, twitter, whatsapp, copy) */
+  platforms?: SharePlatform[];
+  /** Callback when a share action occurs */
+  onShare?: (platform: SharePlatform, url: string) => void;
+  /** Show text labels next to icons (default: false) */
+  showLabels?: boolean;
+  /** Additional CSS class name */
+  className?: string;
+}
