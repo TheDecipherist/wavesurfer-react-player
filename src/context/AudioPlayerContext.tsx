@@ -35,6 +35,7 @@ const DEFAULT_CONFIG: Required<AudioPlayerConfig> = {
 
 const FADE_STEPS = 30; // 30 steps for smooth fade
 const MIN_FADE_IN_VOLUME = 0.1; // Minimum 10% volume on fade-in so users hear something
+const FIRST_PLAY_MAX_VOLUME = 0.15; // First play caps at 15% to avoid startling users
 
 interface AudioPlayerProviderProps {
   children: ReactNode;
@@ -49,6 +50,7 @@ export function AudioPlayerProvider({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const configRef = useRef(config);
+  const isFirstPlayRef = useRef(true); // Track first play for gentle volume intro
 
   // Keep config ref up to date
   useEffect(() => {
@@ -191,7 +193,11 @@ export function AudioPlayerProvider({
       }
 
       // Determine target volume
-      const targetVolume = Math.max(state.volume, MIN_FADE_IN_VOLUME);
+      // On first play, cap at 15% to avoid startling users
+      let targetVolume = Math.max(state.volume, MIN_FADE_IN_VOLUME);
+      if (isFirstPlayRef.current) {
+        targetVolume = Math.min(targetVolume, FIRST_PLAY_MAX_VOLUME);
+      }
 
       // Set initial volume based on fade setting
       if (configRef.current.fadeInEnabled) {
@@ -202,6 +208,8 @@ export function AudioPlayerProvider({
 
       try {
         await audioRef.current.play();
+        // Mark first play as done
+        isFirstPlayRef.current = false;
         // Dispatch event to pause other players
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
