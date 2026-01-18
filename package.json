@@ -1,6 +1,6 @@
 {
   "name": "wavesurf",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A React audio player with WaveSurfer.js waveform visualization, global state management, and mini-player support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

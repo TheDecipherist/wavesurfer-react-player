@@ -156,6 +156,17 @@ export function MiniPlayer({
     [setVolume]
   );
 
+  // Handle scroll wheel on volume control
+  const handleVolumeWheel = useCallback(
+    (e: React.WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      const newVolume = Math.max(0, Math.min(1, displayVolume + delta));
+      setVolume(newVolume);
+    },
+    [displayVolume, setVolume]
+  );
+
   // Handle close button
   const handleClose = useCallback(() => {
     stop();
@@ -212,7 +223,7 @@ export function MiniPlayer({
 
         {/* Volume slider - hidden on mobile */}
         {shouldShowVolume && (
-          <div className="wsp-mini-volume">
+          <div className="wsp-mini-volume" onWheel={handleVolumeWheel}>
             <button
               onClick={() => setVolume(displayVolume > 0 ? 0 : 1)}
               className="wsp-mini-volume-button"
