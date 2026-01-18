@@ -1,4 +1,4 @@
-# wavesurfer-react-player
+# wavesurf
 
 A React audio player with WaveSurfer.js waveform visualization, global state management, and mini-player support.
 
@@ -18,11 +18,11 @@ A React audio player with WaveSurfer.js waveform visualization, global state man
 ## Installation
 
 ```bash
-npm install wavesurfer-react-player wavesurfer.js
+npm install wavesurf wavesurfer.js
 # or
-yarn add wavesurfer-react-player wavesurfer.js
+yarn add wavesurf wavesurfer.js
 # or
-pnpm add wavesurfer-react-player wavesurfer.js
+pnpm add wavesurf wavesurfer.js
 ```
 
 ## Quick Start
@@ -30,7 +30,7 @@ pnpm add wavesurfer-react-player wavesurfer.js
 ### 1. Wrap your app with the provider
 
 ```tsx
-import { AudioPlayerProvider } from 'wavesurfer-react-player';
+import { AudioPlayerProvider } from 'wavesurf';
 
 function App() {
   return (
@@ -44,7 +44,7 @@ function App() {
 ### 2. Add the MiniPlayer component
 
 ```tsx
-import { MiniPlayer } from 'wavesurfer-react-player';
+import { MiniPlayer } from 'wavesurf';
 
 function Layout({ children }) {
   return (
@@ -59,8 +59,8 @@ function Layout({ children }) {
 ### 3. Use the WaveformPlayer for songs
 
 ```tsx
-import { WaveformPlayer } from 'wavesurfer-react-player';
-import 'wavesurfer-react-player/styles.css';
+import { WaveformPlayer } from 'wavesurf';
+import 'wavesurf/styles.css';
 
 function SongList({ songs }) {
   return (
@@ -114,7 +114,7 @@ Wrap your application with this provider to enable global audio state management
 Access the audio player state and controls from any component.
 
 ```tsx
-import { useAudioPlayer } from 'wavesurfer-react-player';
+import { useAudioPlayer } from 'wavesurf';
 
 function CustomControls() {
   const {
@@ -243,7 +243,7 @@ interface WaveformConfig {
 Import the CSS file in your app:
 
 ```tsx
-import 'wavesurfer-react-player/styles.css';
+import 'wavesurf/styles.css';
 ```
 
 ### Customizing with CSS Variables
@@ -331,7 +331,7 @@ import type {
   WaveformConfig,
   WaveformPlayerProps,
   MiniPlayerProps,
-} from 'wavesurfer-react-player';
+} from 'wavesurf';
 ```
 
 ## Browser Support
