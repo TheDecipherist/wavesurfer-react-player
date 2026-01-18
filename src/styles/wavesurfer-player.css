@@ -1,0 +1,395 @@
+/**
+ * WaveSurfer React Player - Default Styles
+ *
+ * All variables can be overridden to customize the appearance.
+ * Import this file or define your own styles using the class names.
+ */
+
+:root {
+  /* Colors */
+  --wsp-wave-color: #666666;
+  --wsp-progress-color: #D4AF37;
+  --wsp-cursor-color: #D4AF37;
+  --wsp-background: transparent;
+  --wsp-background-secondary: rgba(255, 255, 255, 0.05);
+
+  /* Button Colors */
+  --wsp-button-bg: #D4AF37;
+  --wsp-button-bg-hover: #e5c04a;
+  --wsp-button-text: #000000;
+  --wsp-button-disabled-bg: rgba(255, 255, 255, 0.1);
+  --wsp-button-disabled-text: rgba(255, 255, 255, 0.3);
+
+  /* Text Colors */
+  --wsp-text: #ffffff;
+  --wsp-text-muted: #a3a3a3;
+
+  /* Sizing */
+  --wsp-height: 60px;
+  --wsp-mini-height: 40px;
+  --wsp-button-size: 56px;
+  --wsp-mini-button-size: 40px;
+  --wsp-icon-size: 24px;
+  --wsp-mini-icon-size: 20px;
+
+  /* Spacing */
+  --wsp-gap: 16px;
+  --wsp-padding: 8px;
+
+  /* Border Radius */
+  --wsp-radius: 8px;
+  --wsp-button-radius: 50%;
+
+  /* Mini Player */
+  --wsp-mini-bg: #0a0a0a;
+  --wsp-mini-border-color: #D4AF37;
+  --wsp-mini-border-width: 2px;
+  --wsp-mini-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+
+  /* Transitions */
+  --wsp-transition: 150ms ease;
+}
+
+/* ========================================
+   WaveformPlayer Styles
+   ======================================== */
+
+.wsp-player {
+  background: var(--wsp-background);
+  border-radius: var(--wsp-radius);
+  padding: var(--wsp-padding);
+  transition: background var(--wsp-transition);
+}
+
+.wsp-player:hover {
+  background: var(--wsp-background-secondary);
+}
+
+.wsp-player-header {
+  display: flex;
+  align-items: center;
+  gap: var(--wsp-gap);
+  margin-bottom: 12px;
+}
+
+.wsp-player-title {
+  flex: 1;
+  font-weight: 600;
+  color: var(--wsp-text);
+  margin: 0;
+  font-size: 1rem;
+}
+
+.wsp-player-artist {
+  color: var(--wsp-text-muted);
+  font-size: 0.875rem;
+}
+
+.wsp-player-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--wsp-gap);
+}
+
+/* Play Button */
+.wsp-play-button {
+  width: var(--wsp-button-size);
+  height: var(--wsp-button-size);
+  flex-shrink: 0;
+  border-radius: var(--wsp-button-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  background: var(--wsp-button-disabled-bg);
+  color: var(--wsp-button-disabled-text);
+  transition: all var(--wsp-transition);
+}
+
+.wsp-play-button--ready {
+  background: var(--wsp-button-bg);
+  color: var(--wsp-button-text);
+}
+
+.wsp-play-button--ready:hover {
+  background: var(--wsp-button-bg-hover);
+  transform: scale(1.05);
+}
+
+.wsp-play-button:disabled {
+  cursor: not-allowed;
+}
+
+/* Icons */
+.wsp-icon {
+  width: var(--wsp-icon-size);
+  height: var(--wsp-icon-size);
+}
+
+.wsp-icon--play {
+  margin-left: 2px;
+}
+
+.wsp-icon--spinner {
+  animation: wsp-spin 1s linear infinite;
+}
+
+.wsp-spinner-track {
+  opacity: 0.25;
+}
+
+.wsp-spinner-head {
+  opacity: 0.75;
+}
+
+@keyframes wsp-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Waveform Container */
+.wsp-waveform-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.wsp-waveform {
+  width: 100%;
+}
+
+/* Time Display */
+.wsp-time-display {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.wsp-time {
+  font-size: 0.875rem;
+  color: var(--wsp-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ========================================
+   MiniPlayer Styles
+   ======================================== */
+
+.wsp-mini-player {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--wsp-mini-bg);
+  box-shadow: var(--wsp-mini-shadow);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.wsp-mini-player--bottom {
+  bottom: 0;
+  border-top: var(--wsp-mini-border-width) solid var(--wsp-mini-border-color);
+}
+
+.wsp-mini-player--top {
+  top: 0;
+  border-bottom: var(--wsp-mini-border-width) solid var(--wsp-mini-border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.wsp-mini-player-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+}
+
+@media (min-width: 640px) {
+  .wsp-mini-player-inner {
+    gap: 16px;
+    padding: 12px 16px;
+  }
+}
+
+/* Mini Play Button */
+.wsp-mini-play-button {
+  width: var(--wsp-mini-button-size);
+  height: var(--wsp-mini-button-size);
+  flex-shrink: 0;
+  border-radius: var(--wsp-button-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  background: var(--wsp-button-bg);
+  color: var(--wsp-button-text);
+  transition: all var(--wsp-transition);
+}
+
+@media (min-width: 640px) {
+  .wsp-mini-play-button {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.wsp-mini-play-button:hover {
+  background: var(--wsp-button-bg-hover);
+  transform: scale(1.05);
+}
+
+.wsp-mini-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (min-width: 640px) {
+  .wsp-mini-icon {
+    width: var(--wsp-mini-icon-size);
+    height: var(--wsp-mini-icon-size);
+  }
+}
+
+.wsp-mini-icon--play {
+  margin-left: 2px;
+}
+
+/* Mini Content */
+.wsp-mini-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.wsp-mini-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.wsp-mini-title {
+  font-weight: 600;
+  color: var(--wsp-text);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wsp-mini-album {
+  font-size: 0.75rem;
+  color: var(--wsp-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .wsp-mini-album {
+    display: block;
+  }
+}
+
+/* Mini Waveform */
+.wsp-mini-waveform-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wsp-mini-waveform {
+  flex: 1;
+  height: var(--wsp-mini-height);
+}
+
+.wsp-mini-time {
+  font-size: 0.75rem;
+  color: var(--wsp-text-muted);
+  font-variant-numeric: tabular-nums;
+  width: 40px;
+}
+
+.wsp-mini-time:first-child {
+  text-align: right;
+}
+
+/* Mini Volume */
+.wsp-mini-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 112px;
+}
+
+.wsp-mini-volume-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--wsp-text-muted);
+  transition: color var(--wsp-transition);
+}
+
+.wsp-mini-volume-button:hover {
+  color: var(--wsp-button-bg);
+}
+
+.wsp-mini-volume-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.wsp-mini-volume-slider {
+  width: 64px;
+  height: 4px;
+  background: var(--wsp-background-secondary);
+  border-radius: 2px;
+  appearance: none;
+  cursor: pointer;
+}
+
+.wsp-mini-volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--wsp-button-bg);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.wsp-mini-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--wsp-button-bg);
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+}
+
+/* Mini Close Button */
+.wsp-mini-close-button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--wsp-text-muted);
+  transition: color var(--wsp-transition);
+}
+
+.wsp-mini-close-button:hover {
+  color: var(--wsp-text);
+}
+
+.wsp-mini-close-icon {
+  width: 20px;
+  height: 20px;
+}

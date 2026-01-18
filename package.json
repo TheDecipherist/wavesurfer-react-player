@@ -1,0 +1,65 @@
+{
+  "name": "wavesurfer-react-player",
+  "version": "1.0.0",
+  "description": "A React audio player with WaveSurfer.js waveform visualization, global state management, and mini-player support",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "sideEffects": [
+    "*.css"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "react",
+    "audio",
+    "player",
+    "wavesurfer",
+    "waveform",
+    "visualization",
+    "music",
+    "audio-player",
+    "mini-player"
+  ],
+  "author": "TheDecipherist",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TheDecipherist/wavesurfer-react-player.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheDecipherist/wavesurfer-react-player/issues"
+  },
+  "homepage": "https://github.com/TheDecipherist/wavesurfer-react-player#readme",
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "react-dom": ">=17.0.0",
+    "wavesurfer.js": ">=7.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "wavesurfer.js": "^7.8.0"
+  }
+}
