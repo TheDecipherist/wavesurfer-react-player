@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useContext, createContext } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import { useAudioPlayer, MINI_PLAYER_PLAY_EVENT } from '../context/AudioPlayerContext';
 import { useLazyLoad } from '../hooks/useLazyLoad';
 import { formatTime } from '../utils/formatTime';
-import type { WaveformPlayerProps, WaveformConfig } from '../types';
+import type { WaveformPlayerProps, WaveformConfig, Song } from '../types';
 
 const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
   waveColor: '#666666',
@@ -18,6 +18,9 @@ const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
   normalize: true,
 };
 
+// Check if we're inside an AudioPlayerProvider
+const AudioPlayerContext = createContext<unknown>(null);
+
 export function WaveformPlayer({
   song,
   waveformConfig: userWaveformConfig,
@@ -26,46 +29,120 @@ export function WaveformPlayer({
   className = '',
   renderHeader,
   renderControls,
+  standalone = false,
 }: WaveformPlayerProps) {
   const waveformConfig = { ...DEFAULT_WAVEFORM_CONFIG, ...userWaveformConfig };
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const localAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [totalDuration, setTotalDuration] = useState(song.duration || 0);
+
+  // Standalone mode state
+  const [localIsPlaying, setLocalIsPlaying] = useState(false);
+  const [localCurrentTime, setLocalCurrentTime] = useState(0);
 
   // Lazy loading
   const { ref: wrapperRef, isVisible } = useLazyLoad({
     forceVisible: !lazyLoad,
   });
 
-  // Get audio player context for global playback control
-  const {
-    play: contextPlay,
-    togglePlay: contextTogglePlay,
-    seek: contextSeek,
-    currentSong,
-    isPlaying: contextIsPlaying,
-    currentTime: contextCurrentTime,
-  } = useAudioPlayer();
+  // Try to get audio player context (may not exist in standalone mode)
+  let contextValue: ReturnType<typeof useAudioPlayer> | null = null;
+  try {
+    if (!standalone) {
+      contextValue = useAudioPlayer();
+    }
+  } catch {
+    // Context not available, use standalone mode
+  }
 
-  // Check if this song is the currently playing song
-  const isThisSongPlaying = currentSong?.id === song.id;
-  const isPlaying = isThisSongPlaying && contextIsPlaying;
-  const currentTime = isThisSongPlaying ? contextCurrentTime : 0;
+  const useStandaloneMode = standalone || !contextValue;
 
-  // Sync waveform progress with context when this song is playing
+  // Context values (only used when not in standalone mode)
+  const contextPlay = contextValue?.play;
+  const contextTogglePlay = contextValue?.togglePlay;
+  const contextSeek = contextValue?.seek;
+  const contextCurrentSong = contextValue?.currentSong;
+  const contextIsPlaying = contextValue?.isPlaying ?? false;
+  const contextCurrentTime = contextValue?.currentTime ?? 0;
+
+  // Check if this song is the currently playing song (context mode)
+  const isThisSongPlayingInContext = !useStandaloneMode && contextCurrentSong?.id === song.id;
+
+  // Determine actual playing state and current time
+  const isPlaying = useStandaloneMode ? localIsPlaying : (isThisSongPlayingInContext && contextIsPlaying);
+  const currentTime = useStandaloneMode ? localCurrentTime : (isThisSongPlayingInContext ? contextCurrentTime : 0);
+
+  // Initialize local audio element for standalone mode
   useEffect(() => {
-    if (!wavesurferRef.current || !isThisSongPlaying) return;
+    if (!useStandaloneMode) return;
 
-    // Update waveform progress to match context time
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    localAudioRef.current = audio;
+
+    const handleTimeUpdate = () => {
+      setLocalCurrentTime(audio.currentTime);
+    };
+
+    const handleEnded = () => {
+      setLocalIsPlaying(false);
+      setLocalCurrentTime(0);
+    };
+
+    const handleLoadedMetadata = () => {
+      setTotalDuration(audio.duration);
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+    return () => {
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.pause();
+      audio.src = '';
+    };
+  }, [useStandaloneMode]);
+
+  // Listen for other players starting (to pause this one in standalone mode)
+  useEffect(() => {
+    if (!useStandaloneMode) return;
+
+    const handleOtherPlayerPlay = (event: CustomEvent<string>) => {
+      // Another player started, pause this one
+      if (event.detail !== song.id && localAudioRef.current) {
+        localAudioRef.current.pause();
+        setLocalIsPlaying(false);
+      }
+    };
+
+    window.addEventListener(MINI_PLAYER_PLAY_EVENT, handleOtherPlayerPlay as EventListener);
+    return () => {
+      window.removeEventListener(MINI_PLAYER_PLAY_EVENT, handleOtherPlayerPlay as EventListener);
+    };
+  }, [useStandaloneMode, song.id]);
+
+  // Sync waveform progress with playback
+  useEffect(() => {
+    if (!wavesurferRef.current) return;
+
+    const relevantCurrentTime = useStandaloneMode ? localCurrentTime : contextCurrentTime;
+    const shouldSync = useStandaloneMode ? localIsPlaying : isThisSongPlayingInContext;
+
+    if (!shouldSync) return;
+
     const waveDuration = wavesurferRef.current.getDuration();
-    if (waveDuration > 0 && contextCurrentTime >= 0) {
-      const progress = contextCurrentTime / waveDuration;
+    if (waveDuration > 0 && relevantCurrentTime >= 0) {
+      const progress = relevantCurrentTime / waveDuration;
       wavesurferRef.current.seekTo(Math.min(progress, 1));
     }
-  }, [contextCurrentTime, isThisSongPlaying]);
+  }, [localCurrentTime, contextCurrentTime, useStandaloneMode, localIsPlaying, isThisSongPlayingInContext]);
 
-  // Initialize WaveSurfer - waveform display only (audio plays through context)
+  // Initialize WaveSurfer - waveform display only (audio plays through context or local audio)
   useEffect(() => {
     if (!containerRef.current || !isVisible) return;
 
@@ -82,22 +159,32 @@ export function WaveformPlayer({
       barRadius: waveformConfig.barRadius,
       height: waveformConfig.height,
       normalize: waveformConfig.normalize,
-      interact: true, // Allow clicking on waveform to seek
+      interact: true,
       // Only load audio URL if we don't have peaks (needed to generate waveform)
       url: hasPeaks ? undefined : song.audioUrl,
       peaks: hasPeaks ? [song.peaks!] : undefined,
       duration: hasPeaks ? (song.duration || 0) : undefined,
     });
 
+    // IMPORTANT: Mute WaveSurfer so it doesn't play audio (only visualizes)
+    // Audio playback is handled separately through context or local audio element
+    wavesurfer.setMuted(true);
+
     wavesurfer.on('ready', () => {
       setIsReady(true);
       setTotalDuration(wavesurfer.getDuration() || song.duration || 0);
+      // Ensure it stays muted
+      wavesurfer.setMuted(true);
     });
 
     // Handle waveform click for seeking
     wavesurfer.on('interaction', (newTime: number) => {
-      // Only seek if this song is currently playing in the context
-      if (isThisSongPlaying) {
+      if (useStandaloneMode) {
+        if (localAudioRef.current) {
+          localAudioRef.current.currentTime = newTime;
+          setLocalCurrentTime(newTime);
+        }
+      } else if (isThisSongPlayingInContext && contextSeek) {
         contextSeek(newTime);
       }
     });
@@ -126,7 +213,8 @@ export function WaveformPlayer({
     song.peaks,
     song.duration,
     isVisible,
-    isThisSongPlaying,
+    useStandaloneMode,
+    isThisSongPlayingInContext,
     contextSeek,
     waveformConfig.waveColor,
     waveformConfig.progressColor,
@@ -138,18 +226,43 @@ export function WaveformPlayer({
     waveformConfig.normalize,
   ]);
 
-  // Handle play button click - plays through global context
+  // Handle play button click
   const handlePlayClick = useCallback(() => {
     if (!song.id || !song.audioUrl) return;
 
-    if (isThisSongPlaying) {
-      // This song is already loaded - toggle play/pause
-      contextTogglePlay();
+    if (useStandaloneMode) {
+      // Standalone mode - use local audio element
+      if (!localAudioRef.current) return;
+
+      if (localIsPlaying) {
+        localAudioRef.current.pause();
+        setLocalIsPlaying(false);
+      } else {
+        // Dispatch event so other standalone players pause
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent(MINI_PLAYER_PLAY_EVENT, { detail: song.id })
+          );
+        }
+
+        // Load and play
+        if (localAudioRef.current.src !== song.audioUrl) {
+          localAudioRef.current.src = song.audioUrl;
+        }
+        localAudioRef.current.play().catch(() => {
+          // Handle autoplay restrictions
+        });
+        setLocalIsPlaying(true);
+      }
     } else {
-      // Play this song through the global context
-      contextPlay(song);
+      // Context mode - use global player
+      if (isThisSongPlayingInContext) {
+        contextTogglePlay?.();
+      } else {
+        contextPlay?.(song);
+      }
     }
-  }, [song, isThisSongPlaying, contextPlay, contextTogglePlay]);
+  }, [song, useStandaloneMode, localIsPlaying, isThisSongPlayingInContext, contextPlay, contextTogglePlay]);
 
   return (
     <div

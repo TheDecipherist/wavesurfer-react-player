@@ -125,6 +125,12 @@ export interface WaveformPlayerProps {
   renderHeader?: (song: Song, isPlaying: boolean) => React.ReactNode;
   /** Custom render function for additional controls */
   renderControls?: (song: Song, isPlaying: boolean) => React.ReactNode;
+  /**
+   * Standalone mode - play audio locally without global context/MiniPlayer.
+   * Use this when you want a simple player without the persistent mini player bar.
+   * (default: false)
+   */
+  standalone?: boolean;
 }
 
 /**

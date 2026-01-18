@@ -300,11 +300,35 @@ Displays a track with waveform visualization:
   }}
   lazyLoad={true}
   showTime={true}
+  standalone={false}  // Use local audio instead of global context
   className=""
   renderHeader={(song, isPlaying) => <CustomHeader />}
   renderControls={(song, isPlaying) => <CustomControls />}
 />
 ```
+
+#### Standalone Mode
+
+By default, `WaveformPlayer` uses the global `AudioPlayerProvider` context and works with the `MiniPlayer`. If you want a simpler setup—individual players that don't share state and don't show the mini player bar—use standalone mode:
+
+```tsx
+// No AudioPlayerProvider needed
+<WaveformPlayer
+  song={song}
+  standalone={true}
+/>
+```
+
+**When to use standalone mode:**
+- Simple pages with just one or two tracks
+- Embedded players that shouldn't affect the rest of your site
+- When you don't want the persistent mini player bar
+
+**Standalone mode behavior:**
+- Each player manages its own audio element
+- Clicking play on one song automatically pauses others (even in standalone mode)
+- No MiniPlayer appears
+- Volume fade-in and persistence are not applied
 
 ### MiniPlayer
 
@@ -320,6 +344,75 @@ Persistent playback bar:
   waveformConfig={{...}}
 />
 ```
+
+#### Persisting Across Route Changes
+
+To keep the MiniPlayer visible and audio playing while users navigate between pages, place both `AudioPlayerProvider` and `MiniPlayer` in your **root layout**—not in individual pages.
+
+**Next.js App Router:**
+
+```tsx
+// app/layout.tsx
+import { AudioPlayerProvider, MiniPlayer } from 'wavesurf';
+import 'wavesurf/styles.css';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <AudioPlayerProvider>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+          <MiniPlayer />
+        </AudioPlayerProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+**Next.js Pages Router:**
+
+```tsx
+// pages/_app.tsx
+import { AudioPlayerProvider, MiniPlayer } from 'wavesurf';
+import 'wavesurf/styles.css';
+
+export default function MyApp({ Component, pageProps }) {
+  return (
+    <AudioPlayerProvider>
+      <Component {...pageProps} />
+      <MiniPlayer />
+    </AudioPlayerProvider>
+  );
+}
+```
+
+**React Router:**
+
+```tsx
+// App.tsx
+import { AudioPlayerProvider, MiniPlayer } from 'wavesurf';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import 'wavesurf/styles.css';
+
+function App() {
+  return (
+    <AudioPlayerProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/album/:id" element={<Album />} />
+        </Routes>
+      </BrowserRouter>
+      <MiniPlayer />
+    </AudioPlayerProvider>
+  );
+}
+```
+
+**Why this works:** React Context state persists as long as the provider component stays mounted. By placing it in the root layout, the audio state survives page transitions. If you put the provider inside a page component, it unmounts on navigation and loses the current song.
 
 ### ShareButtons
 
