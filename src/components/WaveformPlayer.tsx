@@ -26,6 +26,7 @@ export function WaveformPlayer({
   waveformConfig: userWaveformConfig,
   lazyLoad = true,
   showTime = true,
+  showNowPlayingBadge = false,
   className = '',
   renderHeader,
   renderControls,
@@ -267,9 +268,14 @@ export function WaveformPlayer({
   return (
     <div
       ref={wrapperRef}
-      className={`wsp-player ${className}`}
+      className={`wsp-player ${isPlaying ? 'wsp-player--playing' : ''} ${className}`}
       data-song-id={song.id}
     >
+      {/* Now Playing badge */}
+      {showNowPlayingBadge && isPlaying && (
+        <span className="wsp-now-playing-badge">Now Playing</span>
+      )}
+
       {/* Custom header or default */}
       {renderHeader ? (
         renderHeader(song, isPlaying)

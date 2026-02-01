@@ -12,6 +12,8 @@ export interface Song {
   album?: string;
   /** URL to the audio file */
   audioUrl: string;
+  /** URL to the cover art image (optional) */
+  coverUrl?: string;
   /** Duration in seconds (optional, will be detected if not provided) */
   duration?: number;
   /** Pre-computed waveform peaks for fast visualization (optional) */
@@ -119,6 +121,8 @@ export interface WaveformPlayerProps {
   lazyLoad?: boolean;
   /** Show time display below waveform (default: true) */
   showTime?: boolean;
+  /** Show "Now Playing" badge when this song is playing (default: false) */
+  showNowPlayingBadge?: boolean;
   /** Additional CSS class name */
   className?: string;
   /** Custom render function for the header area */
@@ -144,6 +148,8 @@ export type MiniPlayerPosition = 'top' | 'bottom';
 export interface MiniPlayerProps {
   /** Position on screen (default: 'bottom') */
   position?: MiniPlayerPosition;
+  /** Show cover art thumbnail (default: true) */
+  showCover?: boolean;
   /** Show volume control (default: true on desktop, false on mobile) */
   showVolume?: boolean;
   /** Show close button (default: true) */

@@ -19,6 +19,7 @@ const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
 
 export function MiniPlayer({
   position = 'bottom',
+  showCover = true,
   showVolume = true,
   showClose = true,
   onClose,
@@ -202,6 +203,15 @@ export function MiniPlayer({
             </svg>
           )}
         </button>
+
+        {/* Cover art thumbnail */}
+        {showCover && currentSong.coverUrl && (
+          <img
+            src={currentSong.coverUrl}
+            alt={currentSong.title}
+            className="wsp-mini-cover"
+          />
+        )}
 
         {/* Song info and waveform - center */}
         <div className="wsp-mini-content">
