@@ -29,4 +29,6 @@ export type {
   UseLazyLoadOptions,
   SharePlatform,
   ShareButtonsProps,
+  Region,
 } from './types';
+
