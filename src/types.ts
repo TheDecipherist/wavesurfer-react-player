@@ -1,3 +1,5 @@
+import type { RegionParams } from 'wavesurfer.js/dist/plugins/regions.js';
+
 /**
  * Represents a song/track that can be played by the audio player.
  */
@@ -135,6 +137,8 @@ export interface WaveformPlayerProps {
    * (default: false)
    */
   standalone?: boolean;
+  /** Optional array of regions to display on the waveform timeline */
+  regions?: Region[];
 }
 
 /**
@@ -213,4 +217,33 @@ export interface ShareButtonsProps {
   showLabels?: boolean;
   /** Additional CSS class name */
   className?: string;
+}
+
+/**
+ * Options for creating a region or marker on the waveform timeline
+ * (Matching official wavesurfer.js v7 RegionsPlugin specification).
+ */
+export interface Region extends RegionParams {
+  /** Callback when the region/marker is single-clicked */
+  onClick?: (region: Region, e: MouseEvent) => void;
+  /** Callback when the region/marker is double-clicked */
+  onDoubleClick?: (region: Region, e: MouseEvent) => void;
+  /** Callback when mouse enters the region element */
+  onOver?: (region: Region, e: MouseEvent) => void;
+  /** Callback when mouse leaves the region element */
+  onLeave?: (region: Region, e: MouseEvent) => void;
+  /** Callback while region is being dragged or resized */
+  onUpdate?: (region: Region, side?: 'start' | 'end') => void;
+  /** Callback when region drag or resize finishes */
+  onUpdateEnd?: (region: Region, side?: 'start' | 'end') => void;
+  /** Callback when region.play() is invoked */
+  onPlay?: (region: Region, end?: number) => void;
+  /** Callback when region is about to be removed */
+  onRemove?: (region: Region) => void;
+  /** Callback when region label content is changed */
+  onContentChange?: (region: Region) => void;
+  /** Callback when playback enters the region */
+  onIn?: (region: Region) => void;
+  /** Callback when playback leaves the region */
+  onOut?: (region: Region) => void;
 }
