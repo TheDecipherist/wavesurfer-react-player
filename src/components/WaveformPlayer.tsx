@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState, useCallback, useContext, createContext } from 'react';
 import WaveSurfer from 'wavesurfer.js';
+import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.js';
 import { useAudioPlayer, MINI_PLAYER_PLAY_EVENT } from '../context/AudioPlayerContext';
 import { useLazyLoad } from '../hooks/useLazyLoad';
 import { formatTime } from '../utils/formatTime';
-import type { WaveformPlayerProps, WaveformConfig, Song } from '../types';
+import type { WaveformPlayerProps, WaveformConfig, Song, Region } from '../types';
 
 const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
   waveColor: '#666666',
@@ -23,6 +24,7 @@ const AudioPlayerContext = createContext<unknown>(null);
 
 export function WaveformPlayer({
   song,
+  regions = [],
   waveformConfig: userWaveformConfig,
   lazyLoad = true,
   showTime = true,
@@ -35,6 +37,7 @@ export function WaveformPlayer({
   const waveformConfig = { ...DEFAULT_WAVEFORM_CONFIG, ...userWaveformConfig };
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
+  const regionsPluginRef = useRef<RegionsPlugin | null>(null);
   const localAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [totalDuration, setTotalDuration] = useState(song.duration || 0);
@@ -167,6 +170,10 @@ export function WaveformPlayer({
       duration: hasPeaks ? (song.duration || 0) : undefined,
     });
 
+    // Initialize regions plugin
+    const regionsPlugin = wavesurfer.registerPlugin(RegionsPlugin.create());
+    regionsPluginRef.current = regionsPlugin;
+
     // IMPORTANT: Mute WaveSurfer so it doesn't play audio (only visualizes)
     // Audio playback is handled separately through context or local audio element
     wavesurfer.setMuted(true);
@@ -226,6 +233,58 @@ export function WaveformPlayer({
     waveformConfig.height,
     waveformConfig.normalize,
   ]);
+
+  // Synchronize Regions & Bind Event Callbacks
+  useEffect(() => {
+    if (!isReady || !regionsPluginRef.current) return;
+
+    // Clear previous regions before re-adding
+    regionsPluginRef.current.clearRegions();
+
+    for (const region of regions) {
+      // Destructure event callbacks away from pure RegionParams options
+      const {
+        onClick,
+        onDoubleClick,
+        onOver,
+        onLeave,
+        onUpdate,
+        onUpdateEnd,
+        onPlay,
+        onRemove,
+        onContentChange,
+        onIn,
+        onOut,
+        ...pureRegionParams
+      } = region;
+
+      // Pass ONLY pure RegionParams to wavesurfer.js
+      const singleRegion = regionsPluginRef.current.addRegion(pureRegionParams);
+
+      // Map of native wavesurfer.js region events to React callbacks
+      const eventMap: Array<[string, ((...args: any[]) => void) | undefined]> = [
+        ['click', onClick ? (e) => onClick(region, e) : undefined],
+        ['dblclick', onDoubleClick ? (e) => onDoubleClick(region, e) : undefined],
+        ['over', onOver ? (e) => onOver(region, e) : undefined],
+        ['leave', onLeave ? (e) => onLeave(region, e) : undefined],
+        ['update', onUpdate ? (side) => onUpdate(region, side) : undefined],
+        ['update-end', onUpdateEnd ? (side) => onUpdateEnd(region, side) : undefined],
+        ['play', onPlay ? (end) => onPlay(region, end) : undefined],
+        ['remove', onRemove ? () => onRemove(region) : undefined],
+        ['content-changed', onContentChange ? () => onContentChange(region) : undefined],
+        ['in', onIn ? () => onIn(region) : undefined],
+        ['out', onOut ? () => onOut(region) : undefined],
+      ];
+
+      // Register active handlers on the native region instance
+      for (const [eventName, handler] of eventMap) {
+        if (handler) {
+          singleRegion.on(eventName as any, handler);
+        }
+      }
+    }
+  }, [regions, isReady]);
+
 
   // Handle play button click
   const handlePlayClick = useCallback(() => {
