@@ -58,6 +58,40 @@ describe('WaveformPlayer markers', () => {
     expect(container.querySelector('.wsp-marker')).toHaveAttribute('data-marker-id', 'marker-0');
   });
 
+  it('resolves colors: per-marker, then waveformConfig, then CSS variable fallback', () => {
+    const { container } = renderStandalone({
+      markers: [
+        { id: 'a', time: 10, color: '#ff0000' },
+        { id: 'b', time: 20 },
+        { id: 'c', time: 30, endTime: 40 },
+      ],
+      waveformConfig: { progressColor: '#123456' },
+    });
+
+    expect(container.querySelector('[data-marker-id="a"]')).toHaveAttribute('data-color', '#ff0000');
+    expect(container.querySelector('[data-marker-id="b"]')).toHaveAttribute(
+      'data-color',
+      'var(--wsp-marker-color, #123456)'
+    );
+    expect(container.querySelector('[data-marker-id="c"]')).toHaveAttribute(
+      'data-color',
+      'var(--wsp-region-color, rgba(212, 175, 55, 0.25))'
+    );
+  });
+
+  it('uses waveformConfig.markerColor and regionColor when set', () => {
+    const { container } = renderStandalone({
+      markers: [
+        { id: 'b', time: 20 },
+        { id: 'c', time: 30, endTime: 40 },
+      ],
+      waveformConfig: { markerColor: 'blue', regionColor: 'green' },
+    });
+
+    expect(container.querySelector('[data-marker-id="b"]')).toHaveAttribute('data-color', 'blue');
+    expect(container.querySelector('[data-marker-id="c"]')).toHaveAttribute('data-color', 'green');
+  });
+
   it('seeks to the marker time on click and reports the click', () => {
     const onMarkerClick = vi.fn();
     const { container, getByText } = renderStandalone({ onMarkerClick });
@@ -160,7 +194,7 @@ describe('WaveformPlayer markers', () => {
   it('loads and seeks the song in the global player when a marker is clicked in context mode', async () => {
     const onMarkerClick = vi.fn();
     const { container, getByText } = render(
-      <AudioPlayerProvider fadeInEnabled={false}>
+      <AudioPlayerProvider config={{ fadeInEnabled: false }}>
         <WaveformPlayer song={song} markers={markers} lazyLoad={false} onMarkerClick={onMarkerClick} />
       </AudioPlayerProvider>
     );

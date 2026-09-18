@@ -191,7 +191,10 @@
   width: 100%;
 }
 
-/* Markers & Regions (drawn by the WaveSurfer Regions plugin) */
+/* Markers & Regions (drawn by the WaveSurfer Regions plugin)
+   Set --wsp-marker-color / --wsp-region-color on :root or on a .wsp-player
+   to theme them from CSS. Unset, markers follow progressColor and regions
+   use a translucent gold. */
 .wsp-marker,
 .wsp-region {
   cursor: pointer;

@@ -17,9 +17,24 @@ const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
   barRadius: 2,
   height: 60,
   normalize: true,
-  markerColor: '', // resolved to progressColor at runtime
-  regionColor: 'rgba(212, 175, 55, 0.25)',
+  markerColor: '', // resolved at runtime, see resolveMarkerColors
+  regionColor: '',
 };
+
+const DEFAULT_REGION_COLOR = 'rgba(212, 175, 55, 0.25)';
+
+/**
+ * Default colors for markers and regions. Precedence, highest first:
+ * per-marker `color` > waveformConfig.markerColor / regionColor >
+ * the --wsp-marker-color / --wsp-region-color CSS variables >
+ * progressColor (markers) / a translucent gold (regions).
+ */
+function resolveMarkerColors(config: Required<WaveformConfig>) {
+  return {
+    markerColor: config.markerColor || `var(--wsp-marker-color, ${config.progressColor})`,
+    regionColor: config.regionColor || `var(--wsp-region-color, ${DEFAULT_REGION_COLOR})`,
+  };
+}
 
 const NO_MARKERS: WaveformMarker[] = [];
 
@@ -61,8 +76,7 @@ export function WaveformPlayer({
   onLoopChange,
 }: WaveformPlayerProps) {
   const waveformConfig = { ...DEFAULT_WAVEFORM_CONFIG, ...userWaveformConfig };
-  const markerColor = waveformConfig.markerColor || waveformConfig.progressColor;
-  const regionColor = waveformConfig.regionColor;
+  const { markerColor, regionColor } = resolveMarkerColors(waveformConfig);
   const containerRef = useRef<HTMLDivElement>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
   const localAudioRef = useRef<HTMLAudioElement | null>(null);

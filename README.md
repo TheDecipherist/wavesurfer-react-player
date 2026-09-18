@@ -368,7 +368,7 @@ Each marker is a plain object:
 | `endTime` | `number` | Optional. When set, the marker becomes a highlighted region from `time` to `endTime`. |
 | `id` | `string` | Optional. Defaults to the array index. Use stable ids if you add or remove markers. |
 | `label` | `string` | Optional text rendered next to the marker. |
-| `color` | `string` | Optional CSS color. Falls back to `waveformConfig.markerColor` or `regionColor`. |
+| `color` | `string` | Optional CSS color for this marker. Falls back to `waveformConfig.markerColor` / `regionColor`, then to the `--wsp-marker-color` / `--wsp-region-color` CSS variables, then to `progressColor` (markers) or a translucent gold (regions). |
 | `loop` | `boolean` | Regions only. Clicking the region toggles continuous looping between `time` and `endTime`. |
 | `data` | `unknown` | Anything you want handed back in the callbacks (comment text, author, etc). |
 
@@ -379,6 +379,15 @@ Each marker is a plain object:
 - **Looping.** Click a region with `loop: true` to loop it; click it again to stop. The looping region gets the `wsp-region--looping` class and `onLoopChange` fires with the region (or `null` when looping stops). Looping also stops if the region is removed or another song starts.
 
 Markers are drawn by the WaveSurfer.js [Regions plugin](https://wavesurfer.xyz/plugins/regions) inside the waveform, so they scale with it on resize. You can style them with the `.wsp-marker`, `.wsp-region`, `.wsp-marker-label` and `.wsp-region--looping` classes. Each element also carries a `data-marker-id` attribute.
+
+To theme colors from CSS instead of props, set the variables on `:root` or on a single player:
+
+```css
+:root {
+  --wsp-marker-color: #ff4d4f;
+  --wsp-region-color: rgba(255, 77, 79, 0.2);
+}
+```
 
 > **Tip:** Regions are checked against the audio's `timeupdate` events, which browsers fire a few times a second. A loop can overshoot `endTime` by a fraction of a second before jumping back.
 

@@ -107,9 +107,15 @@ export interface WaveformConfig {
   height?: number;
   /** Normalize waveform to fill height (default: true) */
   normalize?: boolean;
-  /** Default color for point markers (default: same as progressColor) */
+  /**
+   * Default color for point markers.
+   * Falls back to the `--wsp-marker-color` CSS variable, then to progressColor.
+   */
   markerColor?: string;
-  /** Default fill color for region markers (default: 'rgba(212, 175, 55, 0.25)') */
+  /**
+   * Default fill color for region markers.
+   * Falls back to the `--wsp-region-color` CSS variable, then to 'rgba(212, 175, 55, 0.25)'.
+   */
   regionColor?: string;
 }
 
@@ -128,7 +134,7 @@ export interface WaveformMarker {
   endTime?: number;
   /** Text label rendered next to the marker (optional) */
   label?: string;
-  /** CSS color. Overrides waveformConfig.markerColor / regionColor. */
+  /** CSS color for this marker. Overrides waveformConfig.markerColor / regionColor and the CSS variables. */
   color?: string;
   /**
    * Regions only: clicking the region toggles continuous looping between

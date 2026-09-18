@@ -47,6 +47,7 @@ vi.mock('wavesurfer.js/plugins/regions', () => {
       this.color = params.color;
       this.element = document.createElement('div');
       this.element.setAttribute('part', this.start === this.end ? 'marker' : 'region');
+      if (params.color) this.element.dataset.color = params.color;
       if (params.content) {
         this.content =
           typeof params.content === 'string'
