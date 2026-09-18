@@ -22,6 +22,7 @@ export type {
   AudioPlayerContextValue,
   AudioPlayerConfig,
   WaveformConfig,
+  WaveformMarker,
   WaveformPlayerProps,
   MiniPlayerPosition,
   MiniPlayerProps,

@@ -6,7 +6,7 @@ import { useAudioPlayer } from '../context/AudioPlayerContext';
 import { formatTime } from '../utils/formatTime';
 import type { MiniPlayerProps, WaveformConfig } from '../types';
 
-const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
+const DEFAULT_WAVEFORM_CONFIG: Required<Omit<WaveformConfig, 'markerColor' | 'regionColor'>> = {
   waveColor: '#666666',
   progressColor: '#D4AF37',
   cursorColor: 'transparent',

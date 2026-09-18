@@ -191,6 +191,25 @@
   width: 100%;
 }
 
+/* Markers & Regions (drawn by the WaveSurfer Regions plugin) */
+.wsp-marker,
+.wsp-region {
+  cursor: pointer;
+}
+
+.wsp-region--looping {
+  outline: 2px solid var(--wsp-progress-color);
+  outline-offset: -2px;
+}
+
+.wsp-marker-label {
+  font-size: 0.6875rem;
+  line-height: 1;
+  color: var(--wsp-text);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Time Display */
 .wsp-time-display {
   display: flex;

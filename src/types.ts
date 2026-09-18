@@ -107,6 +107,36 @@ export interface WaveformConfig {
   height?: number;
   /** Normalize waveform to fill height (default: true) */
   normalize?: boolean;
+  /** Default color for point markers (default: same as progressColor) */
+  markerColor?: string;
+  /** Default fill color for region markers (default: 'rgba(212, 175, 55, 0.25)') */
+  regionColor?: string;
+}
+
+/**
+ * A marker or region displayed on the waveform.
+ *
+ * - Point marker: only `time` is set. Rendered as a vertical line.
+ * - Region: both `time` and `endTime` are set. Rendered as a highlighted range.
+ */
+export interface WaveformMarker {
+  /** Unique id (optional, defaults to the array index) */
+  id?: string;
+  /** Position in seconds. For regions this is the start time. */
+  time: number;
+  /** End time in seconds. When set, the marker is rendered as a region. */
+  endTime?: number;
+  /** Text label rendered next to the marker (optional) */
+  label?: string;
+  /** CSS color. Overrides waveformConfig.markerColor / regionColor. */
+  color?: string;
+  /**
+   * Regions only: clicking the region toggles continuous looping between
+   * `time` and `endTime`. (default: false)
+   */
+  loop?: boolean;
+  /** Any extra data you want handed back in the marker callbacks */
+  data?: unknown;
 }
 
 /**
@@ -135,6 +165,28 @@ export interface WaveformPlayerProps {
    * (default: false)
    */
   standalone?: boolean;
+  /**
+   * Markers and regions to draw on the waveform.
+   * Point markers have only `time`; regions also have `endTime`.
+   */
+  markers?: WaveformMarker[];
+  /**
+   * Seek to the marker's time when it is clicked (default: true).
+   * In context mode, clicking a marker on a song that isn't loaded yet
+   * starts playing that song from the marker.
+   */
+  seekOnMarkerClick?: boolean;
+  /** Called when a marker or region is clicked (after seeking) */
+  onMarkerClick?: (marker: WaveformMarker, event: MouseEvent) => void;
+  /** Called when the pointer enters a marker or region. Use it to show a tooltip. */
+  onMarkerEnter?: (marker: WaveformMarker, event: MouseEvent) => void;
+  /** Called when the pointer leaves a marker or region. Use it to hide a tooltip. */
+  onMarkerLeave?: (marker: WaveformMarker, event: MouseEvent) => void;
+  /**
+   * Called when region looping starts (with the region) or stops (with null).
+   * Only fires for markers that set `loop: true`.
+   */
+  onLoopChange?: (marker: WaveformMarker | null) => void;
 }
 
 /**

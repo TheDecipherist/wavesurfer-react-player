@@ -12,6 +12,7 @@ Building a good audio player is harder than it looks. You need:
 - **Volume fade-in** so playback doesn't blast at full volume
 - **Mobile responsiveness** across all screen sizes
 - **Lazy loading** so pages with many tracks don't lag
+- **Markers & regions** for chapters, annotations and loops on the waveform
 
 wavesurf handles all of this out of the box, so you can focus on your actual product.
 
@@ -297,6 +298,8 @@ Displays a track with waveform visualization:
     barGap: 1,
     barRadius: 2,
     height: 60,
+    markerColor: '#D4AF37',                  // point markers (defaults to progressColor)
+    regionColor: 'rgba(212, 175, 55, 0.25)', // region fill
   }}
   lazyLoad={true}
   showTime={true}
@@ -304,6 +307,12 @@ Displays a track with waveform visualization:
   className=""
   renderHeader={(song, isPlaying) => <CustomHeader />}
   renderControls={(song, isPlaying) => <CustomControls />}
+  markers={[{ time: 30, label: 'Drop' }]}   // See "Markers & Regions" below
+  seekOnMarkerClick={true}
+  onMarkerClick={(marker, event) => {}}
+  onMarkerEnter={(marker, event) => {}}
+  onMarkerLeave={(marker, event) => {}}
+  onLoopChange={(marker) => {}}
 />
 ```
 
@@ -329,6 +338,49 @@ By default, `WaveformPlayer` uses the global `AudioPlayerProvider` context and w
 - Clicking play on one song automatically pauses others (even in standalone mode)
 - No MiniPlayer appears
 - Volume fade-in and persistence are not applied
+
+#### Markers & Regions
+
+Pass a `markers` array to draw points and ranges on the waveform. It's the building block for SoundCloud-style comments, chapter markers, cue points and loop sections.
+
+```tsx
+const markers = [
+  { id: 'intro',  time: 12,  label: 'Intro' },                          // point marker
+  { id: 'chorus', time: 48,  endTime: 72, label: 'Chorus', loop: true }, // region
+  { id: 'note-1', time: 95,  color: '#ff4d4f', data: { author: 'Ana' } },
+];
+
+<WaveformPlayer
+  song={song}
+  markers={markers}
+  onMarkerClick={(marker) => console.log('clicked', marker.id)}
+  onMarkerEnter={(marker, event) => showTooltip(marker, event.clientX, event.clientY)}
+  onMarkerLeave={() => hideTooltip()}
+  onLoopChange={(marker) => setLooping(marker !== null)}
+/>
+```
+
+Each marker is a plain object:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `time` | `number` | Position in seconds. For regions, the start time. |
+| `endTime` | `number` | Optional. When set, the marker becomes a highlighted region from `time` to `endTime`. |
+| `id` | `string` | Optional. Defaults to the array index. Use stable ids if you add or remove markers. |
+| `label` | `string` | Optional text rendered next to the marker. |
+| `color` | `string` | Optional CSS color. Falls back to `waveformConfig.markerColor` or `regionColor`. |
+| `loop` | `boolean` | Regions only. Clicking the region toggles continuous looping between `time` and `endTime`. |
+| `data` | `unknown` | Anything you want handed back in the callbacks (comment text, author, etc). |
+
+**What happens out of the box:**
+
+- **Click to seek.** Clicking a marker jumps playback to its `time`. In context mode, clicking a marker on a song that isn't loaded yet loads that song and plays it from the marker. Set `seekOnMarkerClick={false}` to handle clicks yourself.
+- **Hover callbacks.** `onMarkerEnter` and `onMarkerLeave` receive the marker and the native `MouseEvent`, so you can position your own tooltip or popover. The player doesn't render a tooltip for you.
+- **Looping.** Click a region with `loop: true` to loop it; click it again to stop. The looping region gets the `wsp-region--looping` class and `onLoopChange` fires with the region (or `null` when looping stops). Looping also stops if the region is removed or another song starts.
+
+Markers are drawn by the WaveSurfer.js [Regions plugin](https://wavesurfer.xyz/plugins/regions) inside the waveform, so they scale with it on resize. You can style them with the `.wsp-marker`, `.wsp-region`, `.wsp-marker-label` and `.wsp-region--looping` classes. Each element also carries a `data-marker-id` attribute.
+
+> **Tip:** Regions are checked against the audio's `timeupdate` events, which browsers fire a few times a second. A loop can overshoot `endTime` by a fraction of a second before jumping back.
 
 ### MiniPlayer
 
