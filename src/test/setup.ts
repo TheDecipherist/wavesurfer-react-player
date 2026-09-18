@@ -23,6 +23,21 @@ vi.mock('wavesurfer.js', () => {
   };
 });
 
+// Mock the WaveSurfer Hover plugin (no DOM of its own in tests)
+vi.mock('wavesurfer.js/plugins/hover', () => {
+  class FakeHoverPlugin {
+    options: unknown;
+    constructor(options?: unknown) {
+      this.options = options;
+    }
+    static create(options?: unknown) {
+      return new FakeHoverPlugin(options);
+    }
+    destroy() {}
+  }
+  return { default: FakeHoverPlugin };
+});
+
 // Mock the WaveSurfer Regions plugin with a DOM-backed fake so marker
 // click/hover behaviour can be tested with real events.
 vi.mock('wavesurfer.js/plugins/regions', () => {

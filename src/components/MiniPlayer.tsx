@@ -17,11 +17,18 @@ const DEFAULT_WAVEFORM_CONFIG: Required<Omit<WaveformConfig, 'markerColor' | 're
   normalize: true,
 };
 
+const DEFAULT_PLAYBACK_RATES = [1, 1.25, 1.5, 2];
+const RESTART_THRESHOLD = 3; // previous() restarts the song after this many seconds
+
 export function MiniPlayer({
   position = 'bottom',
   showCover = true,
   showVolume = true,
   showClose = true,
+  showQueueControls = true,
+  showPlaybackRate = false,
+  playbackRates = DEFAULT_PLAYBACK_RATES,
+  showError = true,
   onClose,
   className = '',
   waveformConfig: userWaveformConfig,
@@ -34,9 +41,19 @@ export function MiniPlayer({
     currentTime,
     duration,
     displayVolume,
+    isMuted,
+    playbackRate,
+    error,
+    queue,
+    hasNext,
+    hasPrevious,
     togglePlay,
     seek,
     setVolume,
+    toggleMute,
+    setPlaybackRate,
+    next,
+    previous,
     stop,
   } = useAudioPlayer();
 
@@ -168,6 +185,13 @@ export function MiniPlayer({
     [displayVolume, setVolume]
   );
 
+  // Cycle to the next playback speed
+  const handleRateClick = useCallback(() => {
+    if (playbackRates.length === 0) return;
+    const index = playbackRates.indexOf(playbackRate);
+    setPlaybackRate(playbackRates[(index + 1) % playbackRates.length]);
+  }, [playbackRates, playbackRate, setPlaybackRate]);
+
   // Handle close button
   const handleClose = useCallback(() => {
     stop();
@@ -179,6 +203,10 @@ export function MiniPlayer({
 
   // Determine if volume should be shown (respects both prop and mobile detection)
   const shouldShowVolume = showVolume && !isMobile;
+  const shouldShowQueueControls = showQueueControls && queue.length > 1;
+  const canGoPrevious = hasPrevious || currentTime > RESTART_THRESHOLD;
+  const isMutedDisplay = isMuted || displayVolume === 0;
+  const currentError = showError && error && error.song?.id === currentSong.id ? error : null;
 
   const positionClass = position === 'top' ? 'wsp-mini-player--top' : 'wsp-mini-player--bottom';
 
@@ -186,6 +214,20 @@ export function MiniPlayer({
     <div className={`wsp-mini-player ${positionClass} ${className}`}>
       {/* Main controls */}
       <div className="wsp-mini-player-inner">
+        {/* Previous track */}
+        {shouldShowQueueControls && (
+          <button
+            onClick={previous}
+            disabled={!canGoPrevious}
+            className="wsp-mini-skip-button wsp-mini-skip-button--previous"
+            aria-label="Previous"
+          >
+            <svg className="wsp-mini-skip-icon" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
+            </svg>
+          </button>
+        )}
+
         {/* Play/pause button - left */}
         <button
           onClick={togglePlay}
@@ -203,6 +245,20 @@ export function MiniPlayer({
             </svg>
           )}
         </button>
+
+        {/* Next track */}
+        {shouldShowQueueControls && (
+          <button
+            onClick={next}
+            disabled={!hasNext}
+            className="wsp-mini-skip-button wsp-mini-skip-button--next"
+            aria-label="Next"
+          >
+            <svg className="wsp-mini-skip-icon" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M6 18l8.5-6L6 6v12zM16 6h2v12h-2z" />
+            </svg>
+          </button>
+        )}
 
         {/* Cover art thumbnail */}
         {showCover && currentSong.coverUrl && (
@@ -223,6 +279,13 @@ export function MiniPlayer({
             )}
           </div>
 
+          {/* Playback error */}
+          {currentError && (
+            <div className="wsp-mini-error" role="alert">
+              {currentError.message}
+            </div>
+          )}
+
           {/* Waveform */}
           <div className="wsp-mini-waveform-container">
             <span className="wsp-mini-time">{formatTime(currentTime)}</span>
@@ -231,15 +294,27 @@ export function MiniPlayer({
           </div>
         </div>
 
+        {/* Playback speed */}
+        {showPlaybackRate && (
+          <button
+            onClick={handleRateClick}
+            className="wsp-mini-rate-button"
+            aria-label={`Playback speed ${playbackRate}x`}
+          >
+            {playbackRate}x
+          </button>
+        )}
+
         {/* Volume slider - hidden on mobile */}
         {shouldShowVolume && (
           <div className="wsp-mini-volume" onWheel={handleVolumeWheel}>
             <button
-              onClick={() => setVolume(displayVolume > 0 ? 0 : 1)}
+              onClick={toggleMute}
               className="wsp-mini-volume-button"
-              aria-label={displayVolume > 0 ? 'Mute' : 'Unmute'}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              aria-pressed={isMuted}
             >
-              {displayVolume === 0 ? (
+              {isMutedDisplay ? (
                 <svg className="wsp-mini-volume-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"

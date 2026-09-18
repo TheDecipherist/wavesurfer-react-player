@@ -21,6 +21,43 @@ export interface Song {
 }
 
 /**
+ * How the queue behaves when it reaches the end.
+ * - 'off': stop after the last song
+ * - 'all': wrap around to the first song
+ * - 'one': repeat the current song
+ */
+export type RepeatMode = 'off' | 'all' | 'one';
+
+/**
+ * Why playback failed.
+ * - 'blocked': the browser refused to start playback without a user gesture
+ * - 'network': the audio could not be fetched
+ * - 'decode': the audio was fetched but could not be decoded
+ * - 'unsupported': the format or URL is not supported
+ * - 'aborted': loading was aborted
+ * - 'unknown': anything else
+ */
+export type AudioPlayerErrorCode =
+  | 'blocked'
+  | 'network'
+  | 'decode'
+  | 'unsupported'
+  | 'aborted'
+  | 'unknown';
+
+/**
+ * A playback or loading error.
+ */
+export interface AudioPlayerError {
+  /** Human-readable message, safe to show in the UI */
+  message: string;
+  /** What went wrong */
+  code: AudioPlayerErrorCode;
+  /** The song that failed (null if none was loaded) */
+  song: Song | null;
+}
+
+/**
  * Internal state of the audio player.
  */
 export interface AudioPlayerState {
@@ -38,6 +75,22 @@ export interface AudioPlayerState {
   displayVolume: number;
   /** Whether volume is currently fading in */
   isFadingIn: boolean;
+  /** Whether audio output is muted (volume is preserved while muted) */
+  isMuted: boolean;
+  /** Playback speed multiplier (1 = normal) */
+  playbackRate: number;
+  /** Whether the current song is still loading */
+  isLoading: boolean;
+  /** The most recent playback error, cleared when a new song starts */
+  error: AudioPlayerError | null;
+  /** Songs in the play queue */
+  queue: Song[];
+  /** Index of the current song in the queue (-1 if it isn't in the queue) */
+  queueIndex: number;
+  /** Repeat mode for the queue */
+  repeat: RepeatMode;
+  /** Whether the queue plays in shuffled order */
+  shuffle: boolean;
 }
 
 /**
@@ -56,12 +109,47 @@ export interface AudioPlayerActions {
   setVolume: (volume: number) => void;
   /** Stop playback and clear current song */
   stop: () => void;
+  /** Mute or unmute without losing the volume setting */
+  toggleMute: () => void;
+  /** Mute or unmute explicitly */
+  setMuted: (muted: boolean) => void;
+  /** Set playback speed (clamped to 0.25-4, pitch is preserved) */
+  setPlaybackRate: (rate: number) => void;
+  /**
+   * Replace the queue without changing playback. If the current song is in
+   * the new queue, next/previous continue from its position.
+   */
+  setQueue: (songs: Song[]) => void;
+  /** Replace the queue and start playing from `startIndex` (default 0) */
+  playQueue: (songs: Song[], startIndex?: number) => void;
+  /** Append a song to the end of the queue */
+  addToQueue: (song: Song) => void;
+  /** Empty the queue (the current song keeps playing) */
+  clearQueue: () => void;
+  /** Play the next song in the queue. Returns false if there is none. */
+  next: () => boolean;
+  /**
+   * Go to the previous song. If more than 3 seconds have played, restarts
+   * the current song instead. Returns false if nothing happened.
+   */
+  previous: () => boolean;
+  /** Set the repeat mode */
+  setRepeat: (mode: RepeatMode) => void;
+  /** Turn shuffle on or off */
+  setShuffle: (shuffle: boolean) => void;
+  /** Clear the current error */
+  clearError: () => void;
 }
 
 /**
  * Combined context value including state and actions.
  */
-export interface AudioPlayerContextValue extends AudioPlayerState, AudioPlayerActions {}
+export interface AudioPlayerContextValue extends AudioPlayerState, AudioPlayerActions {
+  /** Whether next() would play something */
+  hasNext: boolean;
+  /** Whether previous() would move to another song */
+  hasPrevious: boolean;
+}
 
 /**
  * Configuration options for the AudioPlayerProvider.
@@ -85,6 +173,27 @@ export interface AudioPlayerConfig {
   onEnd?: () => void;
   /** Callback when current time changes (called frequently) */
   onTimeUpdate?: (time: number) => void;
+  /** Callback when playback or loading fails */
+  onError?: (error: AudioPlayerError) => void;
+  /** Callback when the queue advances to another song (next, previous, auto-advance) */
+  onSongChange?: (song: Song, index: number) => void;
+  /** Automatically play the next queued song when one ends (default: true) */
+  autoAdvance?: boolean;
+  /** Default playback speed (default: 1) */
+  defaultPlaybackRate?: number;
+  /**
+   * Publish the current song to the OS media controls (lock screen, hardware
+   * keys, notification) via the Media Session API (default: true)
+   */
+  mediaSession?: boolean;
+  /**
+   * Global keyboard shortcuts (default: false).
+   * Space/K play-pause, Left/Right seek, Up/Down volume, M mute,
+   * N next, P previous. Ignored while typing in a form field.
+   */
+  keyboardShortcuts?: boolean;
+  /** Seconds to jump on Left/Right arrow and Media Session seek buttons (default: 5) */
+  seekStep?: number;
 }
 
 /**
@@ -193,6 +302,15 @@ export interface WaveformPlayerProps {
    * Only fires for markers that set `loop: true`.
    */
   onLoopChange?: (marker: WaveformMarker | null) => void;
+  /** Show the time under the cursor while hovering the waveform (default: true) */
+  showHoverTime?: boolean;
+  /**
+   * Show a message under the waveform when playback fails (default: true).
+   * In context mode this is the global player's error for this song.
+   */
+  showError?: boolean;
+  /** Standalone mode only: called when loading or playback fails */
+  onError?: (error: AudioPlayerError) => void;
 }
 
 /**
@@ -212,6 +330,14 @@ export interface MiniPlayerProps {
   showVolume?: boolean;
   /** Show close button (default: true) */
   showClose?: boolean;
+  /** Show previous/next buttons when the queue has more than one song (default: true) */
+  showQueueControls?: boolean;
+  /** Show a playback speed button that cycles through `playbackRates` (default: false) */
+  showPlaybackRate?: boolean;
+  /** Speeds the playback speed button cycles through (default: [1, 1.25, 1.5, 2]) */
+  playbackRates?: number[];
+  /** Show the playback error message when there is one (default: true) */
+  showError?: boolean;
   /** Callback when close button is clicked */
   onClose?: () => void;
   /** Additional CSS class name */

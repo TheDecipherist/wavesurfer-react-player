@@ -23,6 +23,7 @@
   /* Text Colors */
   --wsp-text: #ffffff;
   --wsp-text-muted: #a3a3a3;
+  --wsp-error-color: #f87171;
 
   /* Sizing */
   --wsp-height: 60px;
@@ -189,6 +190,19 @@
 
 .wsp-waveform {
   width: 100%;
+  border-radius: 4px;
+}
+
+.wsp-waveform:focus-visible {
+  outline: 2px solid var(--wsp-progress-color);
+  outline-offset: 2px;
+}
+
+/* Playback error under the waveform */
+.wsp-player-error {
+  margin-top: 6px;
+  font-size: 0.75rem;
+  color: var(--wsp-error-color);
 }
 
 /* Markers & Regions (drawn by the WaveSurfer Regions plugin)
@@ -445,6 +459,64 @@
 
 .wsp-mini-volume-slider::-moz-range-thumb:hover {
   transform: scale(1.15);
+}
+
+/* Mini Previous / Next Buttons */
+.wsp-mini-skip-button {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--wsp-text-muted);
+  transition: color var(--wsp-transition);
+}
+
+.wsp-mini-skip-button:hover:not(:disabled) {
+  color: var(--wsp-text);
+}
+
+.wsp-mini-skip-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.wsp-mini-skip-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Mini Playback Speed Button */
+.wsp-mini-rate-button {
+  flex-shrink: 0;
+  min-width: 44px;
+  padding: 2px 8px;
+  background: transparent;
+  border: 1px solid var(--wsp-text-muted);
+  border-radius: 12px;
+  color: var(--wsp-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--wsp-transition), border-color var(--wsp-transition);
+}
+
+.wsp-mini-rate-button:hover {
+  color: var(--wsp-text);
+  border-color: var(--wsp-text);
+}
+
+/* Mini Playback Error */
+.wsp-mini-error {
+  font-size: 0.75rem;
+  color: var(--wsp-error-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Mini Close Button */

@@ -3,10 +3,18 @@
 import { useEffect, useRef, useState, useCallback, useContext, createContext } from 'react';
 import WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/plugins/regions';
+import HoverPlugin from 'wavesurfer.js/plugins/hover';
 import { useAudioPlayer, MINI_PLAYER_PLAY_EVENT } from '../context/AudioPlayerContext';
 import { useLazyLoad } from '../hooks/useLazyLoad';
 import { formatTime } from '../utils/formatTime';
-import type { WaveformPlayerProps, WaveformConfig, WaveformMarker, Song } from '../types';
+import { describeMediaError, describePlayError } from '../utils/audioErrors';
+import type {
+  WaveformPlayerProps,
+  WaveformConfig,
+  WaveformMarker,
+  AudioPlayerError,
+  Song,
+} from '../types';
 
 const DEFAULT_WAVEFORM_CONFIG: Required<WaveformConfig> = {
   waveColor: '#666666',
@@ -37,6 +45,7 @@ function resolveMarkerColors(config: Required<WaveformConfig>) {
 }
 
 const NO_MARKERS: WaveformMarker[] = [];
+const KEYBOARD_SEEK_STEP = 5; // seconds per arrow key press on the waveform
 
 interface ActiveLoop {
   id: string;
@@ -74,6 +83,9 @@ export function WaveformPlayer({
   onMarkerEnter,
   onMarkerLeave,
   onLoopChange,
+  showHoverTime = true,
+  showError = true,
+  onError,
 }: WaveformPlayerProps) {
   const waveformConfig = { ...DEFAULT_WAVEFORM_CONFIG, ...userWaveformConfig };
   const { markerColor, regionColor } = resolveMarkerColors(waveformConfig);
@@ -82,6 +94,9 @@ export function WaveformPlayer({
   const localAudioRef = useRef<HTMLAudioElement | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [totalDuration, setTotalDuration] = useState(song.duration || 0);
+  const [localError, setLocalError] = useState<AudioPlayerError | null>(null);
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   // Markers / regions
   const [regionsPlugin, setRegionsPlugin] = useState<RegionsPlugin | null>(null);
@@ -118,6 +133,7 @@ export function WaveformPlayer({
   const contextCurrentSong = contextValue?.currentSong;
   const contextIsPlaying = contextValue?.isPlaying ?? false;
   const contextCurrentTime = contextValue?.currentTime ?? 0;
+  const contextError = contextValue?.error ?? null;
 
   // Check if this song is the currently playing song (context mode)
   const isThisSongPlayingInContext = !useStandaloneMode && contextCurrentSong?.id === song.id;
@@ -125,6 +141,23 @@ export function WaveformPlayer({
   // Determine actual playing state and current time
   const isPlaying = useStandaloneMode ? localIsPlaying : (isThisSongPlayingInContext && contextIsPlaying);
   const currentTime = useStandaloneMode ? localCurrentTime : (isThisSongPlayingInContext ? contextCurrentTime : 0);
+
+  // Error to display: our own in standalone mode, the global player's for this song otherwise
+  const error = useStandaloneMode
+    ? localError
+    : contextError && contextError.song?.id === song.id
+      ? contextError
+      : null;
+
+  // Standalone mode: record an error and tell the consumer
+  const reportLocalError = useCallback(
+    (described: { code: AudioPlayerError['code']; message: string }) => {
+      const nextError: AudioPlayerError = { ...described, song };
+      setLocalError(nextError);
+      onErrorRef.current?.(nextError);
+    },
+    [song]
+  );
 
   // Initialize local audio element for standalone mode
   useEffect(() => {
@@ -147,18 +180,27 @@ export function WaveformPlayer({
       setTotalDuration(audio.duration);
     };
 
+    const handleError = () => {
+      // Clearing src raises a bogus "not supported" error; ignore it
+      if (!audio.getAttribute('src')) return;
+      setLocalIsPlaying(false);
+      reportLocalError(describeMediaError(audio.error));
+    };
+
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('error', handleError);
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('error', handleError);
       audio.pause();
       audio.src = '';
     };
-  }, [useStandaloneMode]);
+  }, [useStandaloneMode, reportLocalError]);
 
   // Listen for other players starting (to pause this one in standalone mode)
   useEffect(() => {
@@ -282,6 +324,20 @@ export function WaveformPlayer({
     const regions = wavesurfer.registerPlugin(RegionsPlugin.create());
     setRegionsPlugin(regions);
 
+    // Hover plugin shows the time under the cursor
+    if (showHoverTime) {
+      wavesurfer.registerPlugin(
+        HoverPlugin.create({
+          lineColor: waveformConfig.cursorColor,
+          lineWidth: 1,
+          labelBackground: 'rgba(0, 0, 0, 0.75)',
+          labelColor: '#ffffff',
+          labelSize: 11,
+          formatTimeCallback: formatTime,
+        })
+      );
+    }
+
     wavesurfer.on('ready', () => {
       setIsReady(true);
       setTotalDuration(wavesurfer.getDuration() || song.duration || 0);
@@ -302,7 +358,12 @@ export function WaveformPlayer({
     });
 
     wavesurfer.on('error', () => {
-      // Silently handle errors
+      // The waveform could not be generated (bad URL, undecodable file).
+      // Unlock the play button anyway: the audio element may still play it.
+      setIsReady(true);
+      if (useStandaloneMode) {
+        reportLocalError({ code: 'decode', message: 'The waveform could not be loaded.' });
+      }
     });
 
     wavesurferRef.current = wavesurfer;
@@ -329,6 +390,8 @@ export function WaveformPlayer({
     useStandaloneMode,
     isThisSongPlayingInContext,
     contextSeek,
+    showHoverTime,
+    reportLocalError,
     waveformConfig.waveColor,
     waveformConfig.progressColor,
     waveformConfig.cursorColor,
@@ -447,6 +510,37 @@ export function WaveformPlayer({
     }
   }, [activeLoop, isPlaying, currentTime, seekToTime]);
 
+  // Keyboard seeking on the focused waveform
+  const handleWaveformKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      const duration = totalDuration > 0 ? totalDuration : Infinity;
+      let target: number | null = null;
+
+      switch (event.key) {
+        case 'ArrowLeft':
+          target = Math.max(0, currentTime - KEYBOARD_SEEK_STEP);
+          break;
+        case 'ArrowRight':
+          target = Math.min(duration, currentTime + KEYBOARD_SEEK_STEP);
+          break;
+        case 'Home':
+          target = 0;
+          break;
+        case 'End':
+          target = totalDuration;
+          break;
+        default:
+          return;
+      }
+
+      event.preventDefault();
+      if (target !== null && isFinite(target)) {
+        seekToTime(target);
+      }
+    },
+    [currentTime, totalDuration, seekToTime]
+  );
+
   // Handle play button click
   const handlePlayClick = useCallback(() => {
     if (!song.id || !song.audioUrl) return;
@@ -454,6 +548,7 @@ export function WaveformPlayer({
     if (useStandaloneMode) {
       // Standalone mode - use local audio element
       if (!localAudioRef.current) return;
+      setLocalError(null);
 
       if (localIsPlaying) {
         localAudioRef.current.pause();
@@ -470,8 +565,12 @@ export function WaveformPlayer({
         if (localAudioRef.current.src !== song.audioUrl) {
           localAudioRef.current.src = song.audioUrl;
         }
-        localAudioRef.current.play().catch(() => {
-          // Handle autoplay restrictions
+        localAudioRef.current.play().catch((err: unknown) => {
+          const described = describePlayError(err);
+          if (described) {
+            setLocalIsPlaying(false);
+            reportLocalError(described);
+          }
         });
         setLocalIsPlaying(true);
       }
@@ -483,12 +582,12 @@ export function WaveformPlayer({
         contextPlay?.(song);
       }
     }
-  }, [song, useStandaloneMode, localIsPlaying, isThisSongPlayingInContext, contextPlay, contextTogglePlay]);
+  }, [song, useStandaloneMode, localIsPlaying, isThisSongPlayingInContext, contextPlay, contextTogglePlay, reportLocalError]);
 
   return (
     <div
       ref={wrapperRef}
-      className={`wsp-player ${isPlaying ? 'wsp-player--playing' : ''} ${className}`}
+      className={`wsp-player ${isPlaying ? 'wsp-player--playing' : ''} ${error ? 'wsp-player--error' : ''} ${className}`}
       data-song-id={song.id}
     >
       {/* Now Playing badge */}
@@ -547,13 +646,32 @@ export function WaveformPlayer({
 
         {/* Waveform container */}
         <div className="wsp-waveform-wrapper">
-          <div ref={containerRef} className="wsp-waveform" />
+          <div
+            ref={containerRef}
+            className="wsp-waveform"
+            role="slider"
+            tabIndex={0}
+            aria-label={`Seek ${song.title}`}
+            aria-orientation="horizontal"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(totalDuration)}
+            aria-valuenow={Math.round(currentTime)}
+            aria-valuetext={`${formatTime(currentTime)} of ${formatTime(totalDuration)}`}
+            onKeyDown={handleWaveformKeyDown}
+          />
 
           {/* Time display */}
           {showTime && (
             <div className="wsp-time-display">
               <span className="wsp-time">{formatTime(currentTime)}</span>
               <span className="wsp-time">{formatTime(totalDuration)}</span>
+            </div>
+          )}
+
+          {/* Playback error */}
+          {showError && error && (
+            <div className="wsp-player-error" role="alert">
+              {error.message}
             </div>
           )}
         </div>

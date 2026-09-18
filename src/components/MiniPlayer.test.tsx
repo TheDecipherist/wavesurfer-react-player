@@ -284,12 +284,19 @@ describe('MiniPlayer volume control', () => {
 
     // Click mute button
     await act(async () => {
-      screen.getByRole('button', { name: /mute/i }).click();
+      screen.getByRole('button', { name: /^mute$/i }).click();
     });
 
-    // Volume should be 0
-    const slider = screen.getByRole('slider', { name: /volume/i });
-    expect(slider).toHaveValue('0');
+    // Muted, but the volume setting is preserved
+    expect(screen.getByRole('button', { name: /unmute/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('slider', { name: /volume/i })).toHaveValue('1');
+
+    // Click again to unmute
+    await act(async () => {
+      screen.getByRole('button', { name: /unmute/i }).click();
+    });
+
+    expect(screen.getByRole('button', { name: /^mute$/i })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('adjusts volume on scroll wheel', async () => {

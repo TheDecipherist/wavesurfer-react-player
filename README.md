@@ -13,6 +13,9 @@ Building a good audio player is harder than it looks. You need:
 - **Mobile responsiveness** across all screen sizes
 - **Lazy loading** so pages with many tracks don't lag
 - **Markers & regions** for chapters, annotations and loops on the waveform
+- **A play queue** with next/previous, auto-advance, repeat and shuffle
+- **OS media controls** (lock screen, hardware keys) via the Media Session API
+- **Keyboard shortcuts** and an accessible, keyboard-seekable waveform
 
 wavesurf handles all of this out of the box, so you can focus on your actual product.
 
@@ -241,9 +244,16 @@ Wraps your app to provide global audio state.
   persistVolume: true,
   storageKey: 'audioPlayerVolume',
   defaultVolume: 1,
+  defaultPlaybackRate: 1,
+  autoAdvance: true,          // play the next queued song when one ends
+  mediaSession: true,         // lock screen / hardware key controls
+  keyboardShortcuts: false,   // global Space, arrows, M, N, P
+  seekStep: 5,                // seconds per arrow key / media seek button
   onPlay: (song) => analytics.track('play', song),
   onPause: () => analytics.track('pause'),
   onEnd: () => analytics.track('songEnded'),
+  onSongChange: (song, index) => {},   // queue moved to another song
+  onError: (error) => {},              // see "Errors & Loading"
   onTimeUpdate: (time) => {},
 }}>
   {children}
@@ -264,6 +274,16 @@ const {
   volume,         // number (0-1, user's saved volume)
   displayVolume,  // number (0-1, actual volume during fade)
   isFadingIn,     // boolean
+  isMuted,        // boolean
+  playbackRate,   // number (1 = normal)
+  isLoading,      // boolean (loading or buffering)
+  error,          // AudioPlayerError | null
+  queue,          // Song[]
+  queueIndex,     // number (-1 if the current song isn't in the queue)
+  repeat,         // 'off' | 'all' | 'one'
+  shuffle,        // boolean
+  hasNext,        // boolean
+  hasPrevious,    // boolean
 
   // Actions
   play,           // (song: Song) => void
@@ -271,9 +291,88 @@ const {
   togglePlay,     // () => void
   seek,           // (time: number) => void
   setVolume,      // (volume: number) => void
+  toggleMute,     // () => void (keeps the volume setting)
+  setMuted,       // (muted: boolean) => void
+  setPlaybackRate,// (rate: number) => void, 0.25-4, pitch preserved
   stop,           // () => void
+  clearError,     // () => void
+
+  // Queue
+  setQueue,       // (songs: Song[]) => void
+  playQueue,      // (songs: Song[], startIndex?: number) => void
+  addToQueue,     // (song: Song) => void
+  clearQueue,     // () => void
+  next,           // () => boolean
+  previous,       // () => boolean
+  setRepeat,      // (mode: 'off' | 'all' | 'one') => void
+  setShuffle,     // (shuffle: boolean) => void
 } = useAudioPlayer();
 ```
+
+### Queue
+
+Hand the provider the list of songs and it takes care of what plays next. The usual pattern is to set the queue where the track list renders, so any `WaveformPlayer` play button continues into the rest of the list:
+
+```tsx
+function TrackList({ tracks }) {
+  const { setQueue } = useAudioPlayer();
+
+  useEffect(() => {
+    setQueue(tracks);
+  }, [tracks, setQueue]);
+
+  return tracks.map((track) => <WaveformPlayer key={track.id} song={track} />);
+}
+```
+
+`setQueue` never interrupts playback. If the current song is in the new queue, next/previous continue from its position. To start playing right away, use `playQueue(tracks, startIndex)`.
+
+**What the queue does:**
+
+- **Auto-advance.** When a song ends the next one starts (no fade-in between tracks). Turn it off with `autoAdvance: false`.
+- **Next / previous.** `next()` and `previous()` return `false` when there is nowhere to go. `previous()` restarts the current song if more than 3 seconds have played, like every other player.
+- **Repeat.** `setRepeat('all')` wraps around at the ends, `setRepeat('one')` replays the current song.
+- **Shuffle.** `setShuffle(true)` plays the rest of the queue in random order, each song once.
+- **Callbacks.** `onSongChange(song, index)` fires when the queue moves, whether by `next()`, `previous()`, a hardware key or auto-advance.
+
+The `MiniPlayer` shows previous/next buttons whenever the queue has more than one song.
+
+### Media Session (lock screen & hardware keys)
+
+When `mediaSession` is on (the default) the provider publishes the current song's title, artist, album and cover art to the OS, and wires play, pause, next, previous, seek and stop to the queue. That gives you lock-screen controls on phones, media keys on keyboards, and Bluetooth headset buttons for free. Browsers without the Media Session API are simply skipped.
+
+### Keyboard Shortcuts
+
+Opt in with `keyboardShortcuts: true`. Shortcuts only work while a song is loaded and are ignored while typing in an input, textarea, select or contenteditable element.
+
+| Key | Action |
+|-----|--------|
+| `Space` or `K` | Play / pause |
+| `Left` / `Right` | Seek back / forward by `seekStep` seconds (default 5) |
+| `Up` / `Down` | Volume up / down 5% |
+| `M` | Mute / unmute |
+| `N` / `P` | Next / previous song |
+
+Independently of this option, every `WaveformPlayer` waveform is a focusable slider: Tab to it and use `Left`/`Right` to seek 5 seconds, `Home`/`End` to jump to the start or end. Screen readers announce it as "Seek <song title>" with the current position.
+
+### Errors & Loading
+
+Playback failures used to be silent. Now the provider exposes them:
+
+```ts
+interface AudioPlayerError {
+  code: 'blocked' | 'network' | 'decode' | 'unsupported' | 'aborted' | 'unknown';
+  message: string;      // safe to show to users
+  song: Song | null;    // the song that failed
+}
+```
+
+- `error` in `useAudioPlayer()` holds the latest error, cleared when a new song starts or by `clearError()`.
+- `onError(error)` in the provider config fires for every error.
+- `isLoading` is true while the audio is loading or buffering.
+- `'blocked'` means the browser refused to autoplay. The fix is to start playback from a click, which `WaveformPlayer` and `MiniPlayer` already do.
+
+`MiniPlayer` and `WaveformPlayer` show the message under the title or waveform. Pass `showError={false}` to render it yourself.
 
 ### WaveformPlayer
 
@@ -313,6 +412,9 @@ Displays a track with waveform visualization:
   onMarkerEnter={(marker, event) => {}}
   onMarkerLeave={(marker, event) => {}}
   onLoopChange={(marker) => {}}
+  showHoverTime={true}    // time under the cursor while hovering the waveform
+  showError={true}        // playback error message under the waveform
+  onError={(error) => {}} // standalone mode only; context mode uses the provider's onError
 />
 ```
 
@@ -338,6 +440,8 @@ By default, `WaveformPlayer` uses the global `AudioPlayerProvider` context and w
 - Clicking play on one song automatically pauses others (even in standalone mode)
 - No MiniPlayer appears
 - Volume fade-in and persistence are not applied
+- The queue, mute, playback rate, Media Session and global keyboard shortcuts live in the provider, so they are not available either
+- Errors go to the player's own `onError` prop
 
 #### Markers & Regions
 
@@ -398,13 +502,20 @@ Persistent playback bar:
 ```tsx
 <MiniPlayer
   position="bottom"  // 'top' | 'bottom'
+  showCover={true}
   showVolume={true}
   showClose={true}
+  showQueueControls={true}   // previous/next, shown when the queue has 2+ songs
+  showPlaybackRate={false}   // speed button cycling through playbackRates
+  playbackRates={[1, 1.25, 1.5, 2]}
+  showError={true}
   onClose={() => {}}
   className=""
   waveformConfig={{...}}
 />
 ```
+
+The mute button keeps your volume setting: unmuting returns to where you were.
 
 #### Persisting Across Route Changes
 
@@ -526,6 +637,11 @@ Override any of these in your CSS:
   /* Text */
   --wsp-text: #ffffff;
   --wsp-text-muted: #a3a3a3;
+  --wsp-error-color: #f87171;
+
+  /* Markers (unset by default, see "Markers & Regions") */
+  --wsp-marker-color: #D4AF37;
+  --wsp-region-color: rgba(212, 175, 55, 0.25);
 
   /* Sizing */
   --wsp-height: 60px;
@@ -546,11 +662,16 @@ Override any of these in your CSS:
 
 All components use BEM-style class names you can target:
 
-- `.wsp-player` - WaveformPlayer container
+- `.wsp-player` - WaveformPlayer container (`.wsp-player--playing`, `.wsp-player--error`)
 - `.wsp-play-button` - Play/pause button
-- `.wsp-waveform` - Waveform container
+- `.wsp-waveform` - Waveform container (focusable slider)
 - `.wsp-time-display` - Time labels
+- `.wsp-player-error` - Error message under the waveform
+- `.wsp-marker`, `.wsp-region`, `.wsp-marker-label`, `.wsp-region--looping` - Markers
 - `.wsp-mini-player` - MiniPlayer container
+- `.wsp-mini-skip-button` - Previous/next buttons (`--previous`, `--next`)
+- `.wsp-mini-rate-button` - Playback speed button
+- `.wsp-mini-error` - Error message in the mini player
 - `.wsp-share-buttons` - ShareButtons container
 - `.wsp-share-button` - Individual share button
 
@@ -638,7 +759,7 @@ Requires browsers with:
 - CSS Custom Properties
 - IntersectionObserver
 
-All modern browsers (Chrome, Firefox, Safari, Edge) are supported.
+All modern browsers (Chrome, Firefox, Safari, Edge) are supported. The Media Session API is used when available and skipped otherwise.
 
 ---
 
